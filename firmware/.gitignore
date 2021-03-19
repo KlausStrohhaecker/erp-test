@@ -1,0 +1,21 @@
+# Blacklist files/folders in same directory as the .gitignore file
+
+# Whitelist some files
+!src/application/.cproject
+!src/application/.project
+!src/in-app-flasher/.cproject
+!src/in-app-flasher/.project
+
+# Blacklist files/folders
+.metadata/
+src/application/.settings
+src/application/Release
+src/application/Debug
+src/in-app-flasher/.settings
+src/in-app-flasher/Release
+src/in-app-flasher/Debug
+*.launch
+
+# Whitelist our folders we want to sync
+# trailing "/" is optional for folders, may match file though.
+# "/" is NOT optional when followed by a *
