@@ -43,7 +43,7 @@ typedef struct PacketTransfer PacketTransfer_t;
 
 static PacketTransfer_t packetTransfer[2] =  // port number is referring to incoming packet !
     {
-      { .first = 1, .portNo = 0, .outgoingPortNo = 1, .outgoingTransfer = &packetTransfer[1] },
+      { .first = 1, .portNo = 0, .outgoingPortNo = 0, .outgoingTransfer = &packetTransfer[0] },  // !!!! patched
       { .first = 1, .portNo = 1, .outgoingPortNo = 0, .outgoingTransfer = &packetTransfer[0] },
     };
 
@@ -247,9 +247,27 @@ static void Receive_IRQ_FirstCallback(uint8_t const port, uint8_t *buff, uint32_
 void MIDI_Relay_Init(void)
 {
   packetTransferReset(&packetTransfer[0]);
-  packetTransferReset(&packetTransfer[1]);
+  // packetTransferReset(&packetTransfer[1]);
   USB_MIDI_Config(0, Receive_IRQ_FirstCallback);
-  USB_MIDI_Config(1, Receive_IRQ_FirstCallback);
+  // USB_MIDI_Config(1, Receive_IRQ_FirstCallback);
   USB_MIDI_Init(0);
-  USB_MIDI_Init(1);
+  // USB_MIDI_Init(1);
+}
+
+void SendERP(uint8_t *buff, uint32_t len)
+{
+  OP = &packetTransfer[0];
+
+  if (!t->outgoingTransfer->online)
+    return;
+
+  if (t->state != IDLE)
+  {
+    SMON_monitorEvent(t->portNo, DROPPED_INCOMING);
+    return;
+  }
+
+  t->pData = buff;
+  t->len   = len;
+  t->state = RECEIVED;
 }

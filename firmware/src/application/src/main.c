@@ -16,6 +16,7 @@
 #include "midi/MIDI_statemonitor.h"
 #include "sys/nl_version.h"
 #include "sys/ticker.h"
+#include "erp/erp.h"
 
 void M4SysTick_Init(void);
 
@@ -41,6 +42,8 @@ void main(void)
   // we wait until here because USB handlers are interrupt-driven and everything has to be set up
   MIDI_Relay_Init();
 
+  ERP_Init();
+
   while (1)
   {
     MIDI_Relay_ProcessFast();
@@ -48,6 +51,7 @@ void main(void)
     {
       trigger = 0;
       SMON_Process();
+      ERP_Process();
     }
   }
 }
