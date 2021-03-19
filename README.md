@@ -1,4 +1,4 @@
-# midibridge
+# ERP Test
  hardware + firmware + tools for a ERP test unit based on the USB host-to-host MIDI bridge
  
 ## Project Organization
