@@ -14,6 +14,8 @@
 #include <fcntl.h>
 #include <alsa/asoundlib.h>
 
+#include "erp_decode.h"
+
 #define PAYLOAD_BUFFER_SIZE (100000ul)
 
 #define RAW_TX_BUFFER_SIZE (PAYLOAD_BUFFER_SIZE * 2ul)  // need headroom for 8-to-7 bit encoding of the payload
@@ -323,10 +325,18 @@ static inline BOOL examineContent(void const *const data, unsigned const len)
   for (int i = 0; i < 8; i++)
     adcValues[i] = ((uint16_t *) data)[i];
 
+  int delta = ERP_getIncrement(adcValues[0], adcValues[4]);
+
+  static int sum;
+
+  sum += delta;
+
   cursorUp(1);
   printf("#%lu\n", ++packetNumber);
   cursorUp(2);
-  printf("wiper 1 =%4u, wiper 2 =%4u\n\n", adcValues[0], adcValues[4]);
+  printf("wiper 1 =%4u, wiper 2 =%4u, a=%7.1lf \n\n",
+         (unsigned) adcValues[0], (unsigned) adcValues[4],
+         ERP_incrementTo360deg(sum));
   fflush(stdout);
   return TRUE;
 }

@@ -1,7 +1,7 @@
 #include <malloc.h>
 #include <math.h>
 #include <limits.h>
-#include <mem.h>
+//#include <mem.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -250,50 +250,102 @@ static int getAngleIncrement(int const angle)
     return 0;
   }
   int result = angle - oldAngle;
-  oldAngle   = angle;
+  if (result >= 1024 * ANGLE_180)
+    result = 1024 * ANGLE_360 - result;
+  if (result < -1024 * ANGLE_180)
+    result = -1024 * ANGLE_360 - result;
+
+  oldAngle = angle;
   return result;
 }
 
-void ERP_GetData(int const w1, int const w2, int* const pAngle; int* const pIncrement)
+#define THRESHOLD ((ANGLE_90 * 1024ll * BUF_SIZE) / 90 / 2)
+#define BUF_SIZE  (32)
+
+int ERP_getIncrement(int const w1, int const w2)
+{
+  static int      current;
+  int             angle     = getAngle(w1, w2);
+  int             increment = getAngleIncrement(angle);
+  static int      increments[BUF_SIZE];
+  static unsigned idx;
+  static int64_t  sum;
+
+  idx = (idx + 1) % BUF_SIZE;
+  sum -= increments[idx];
+  sum += increment;
+  increments[idx] = increment;
+
+  current += sum;
+
+  if (current > +THRESHOLD)
+  {
+    current -= THRESHOLD;
+    return 1;
+  }
+  if (current < -THRESHOLD)
+  {
+    current += THRESHOLD;
+    return -1;
+  }
+  return 0;
+}
+
+double ERP_incrementTo360deg(int increment)
+{
+  return (360. * (double) increment * (double) THRESHOLD / (double) (ANGLE_360 * 1024ll * BUF_SIZE));
+}
+void ERP_GetData(int const w1, int const w2, int* const pAngle, int* const pIncrement)
 {
   if (pAngle && pIncrement)
   {
     *pAngle     = getAngle(w1, w2);
     *pIncrement = getAngleIncrement(*pAngle);
   }
+}
 
-  int randN(int N)
-  {
-    return ((double) rand() / (double) RAND_MAX - 0.5) * 2 * N;
-  }
+double ERP_AngleTo360deg(double angle)
+{
+  angle = angle / 1024. * 90.0 / ANGLE_90;
+  while (angle >= +180)
+    angle -= 360;
+  while (angle < -180)
+    angle += 360;
+  return angle;
+}
 
-  void test(void)
-  {
+int randN(int N)
+{
+  return ((double) rand() / (double) RAND_MAX - 0.5) * 2 * N;
+}
+
+void test(void)
+{
 #if 01
-    AngleData_t test;
-    for (int w = 0; w < WIPER_RANGE; w++)
-    {
-      getAngleData(w, 1, &test);
-      printf("w=%4.1lf, weight=%3d, phi1=%5.2lf, phi2=%5.2lf\n",
-             100.0 * (double) w / WIPER_RANGE, test.wheight,
-             (double) test.candidateAngle[0] * 90. / ANGLE_90,
-             (double) test.candidateAngle[1] * 90. / ANGLE_90);
-    }
+  AngleData_t test;
+  for (int w = 0; w < WIPER_RANGE; w++)
+  {
+    getAngleData(w, 1, &test);
+    printf("w=%4.1lf, weight=%3d, phi1=%5.2lf, phi2=%5.2lf\n",
+           100.0 * (double) w / WIPER_RANGE, test.wheight,
+           (double) test.candidateAngle[0] * 90. / ANGLE_90,
+           (double) test.candidateAngle[1] * 90. / ANGLE_90);
+  }
 #endif
 
-    int w1, w2;
-    int a, da;
+  int w1, w2;
+  int a, da;
 
-    for (int i = 0; i < 00; i++)
-    {
-      w1 = 600 + randN(3);
-      w2 = 150 + randN(3);
-      w1 = (w1 - 500) * WIPER_MAX / 500 + WIPER_RANGE / 2;
-      w2 = (w2 - 500) * WIPER_MAX / 500 + WIPER_RANGE / 2;
-      a  = getAngle(w1, w2);
-      da = getAngleIncrement(a);
-      printf("a=%6.3lf, da=%6.3lf\n",
-             (double) a / 1024. * 90.0 / ANGLE_90,
-             (double) da / 1024. * 90.0 / ANGLE_90);
-    }
+  for (int i = 0; i < 00; i++)
+  {
+    w1 = 600 + randN(3);
+    w2 = 150 + randN(3);
+    w1 = (w1 - 500) * WIPER_MAX / 500 + WIPER_RANGE / 2;
+    w2 = (w2 - 500) * WIPER_MAX / 500 + WIPER_RANGE / 2;
+    a  = getAngle(w1, w2);
+    da = getAngleIncrement(a);
+    printf("a=%6.3lf, da=%6.3lf\n",
+           (double) a / 1024. * 90.0 / ANGLE_90,
+           (double) da / 1024. * 90.0 / ANGLE_90);
   }
+}
