@@ -236,7 +236,8 @@ static int getAngle(
       return ((w0 * ca0) + (w1 * ca1)) * 1024 / (w0 + w1);
     return (ca0 + ca1) * 1024 / 2;
   }
-  return INT_MAX;
+  printf("\nError: wiper values not within bounds\n");
+  exit(3);
 }
 
 static int getAngleIncrement(int const angle)
@@ -252,41 +253,56 @@ static int getAngleIncrement(int const angle)
   int result = angle - oldAngle;
   if (result >= 1024 * ANGLE_180)
     result = 1024 * ANGLE_360 - result;
-  if (result < -1024 * ANGLE_180)
+  if (result <= -1024 * ANGLE_180)
     result = -1024 * ANGLE_360 - result;
 
   oldAngle = angle;
   return result;
 }
 
-#define THRESHOLD ((ANGLE_90 * 1024ll * BUF_SIZE) / 90 / 2)
-#define BUF_SIZE  (32)
+#define THRESHOLD ((ANGLE_90 * 1024ll * BUF_SIZE) / 90 / 10)
+#define BUF_SIZE  (128)
 
-int ERP_getIncrement(int const w1, int const w2)
+int64_t ERP_getIncrement(int const w1, int const w2)
 {
-  static int      current;
-  int             angle     = getAngle(w1, w2);
-  int             increment = getAngleIncrement(angle);
+
   static int      increments[BUF_SIZE];
   static unsigned idx;
   static int64_t  sum;
+  static int64_t  current;
+  static int      fill = 2;
+
+  int newAngle  = getAngle(w1, w2);
+  int increment = getAngleIncrement(newAngle);
+  // printf("a=%d\n", newAngle);
 
   idx = (idx + 1) % BUF_SIZE;
   sum -= increments[idx];
   sum += increment;
   increments[idx] = increment;
 
+  if (fill)
+  {
+    if (idx == 0)
+      fill--;
+    return 0;
+  }
+
   current += sum;
 
   if (current > +THRESHOLD)
   {
-    current -= THRESHOLD;
-    return 1;
+    int cnt = 0;
+    while (current > +THRESHOLD)
+      current -= THRESHOLD, cnt++;
+    return cnt;
   }
   if (current < -THRESHOLD)
   {
-    current += THRESHOLD;
-    return -1;
+    int cnt = 0;
+    while (current < -THRESHOLD)
+      current += THRESHOLD, cnt--;
+    return cnt;
   }
   return 0;
 }
