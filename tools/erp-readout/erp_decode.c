@@ -260,7 +260,7 @@ static int getAngleIncrement(int const angle)
   return result;
 }
 
-#define THRESHOLD ((ANGLE_90 * 1024ll * BUF_SIZE) / 90 / 10)
+#define THRESHOLD ((22ll * ANGLE_360 * 1024ll * BUF_SIZE) / 36ll / 2000ll)
 #define BUF_SIZE  (128)
 
 int64_t ERP_getIncrement(int const w1, int const w2)
@@ -268,9 +268,10 @@ int64_t ERP_getIncrement(int const w1, int const w2)
 
   static int      increments[BUF_SIZE];
   static unsigned idx;
-  static int64_t  sum;
-  static int64_t  current;
+  static int      sum;
+  static int      current, last;
   static int      fill = 2;
+  static int      threshold;
 
   int newAngle  = getAngle(w1, w2);
   int increment = getAngleIncrement(newAngle);
@@ -284,27 +285,46 @@ int64_t ERP_getIncrement(int const w1, int const w2)
   if (fill)
   {
     if (idx == 0)
-      fill--;
+      if (!--fill)
+      {
+        current   = sum;
+        threshold = THRESHOLD * 10;
+      }
     return 0;
   }
 
+  last = current;
   current += sum;
 
-  if (current > +THRESHOLD)
+#define SLOW (220ll * THRESHOLD / 100ll)
+  int targetThreshold = THRESHOLD;
+  int diff            = abs(current - last);
+  if (diff < SLOW)
   {
-    int cnt = 0;
-    while (current > +THRESHOLD)
-      current -= THRESHOLD, cnt++;
-    return cnt;
+    int factor      = 1420 - 1400 * diff / SLOW;
+    targetThreshold = THRESHOLD * factor / 20ll;
   }
-  if (current < -THRESHOLD)
+
+  if (targetThreshold > threshold)
+    threshold += THRESHOLD / 512;
+  if (targetThreshold < threshold)
+    threshold -= targetThreshold / 64;
+
+  int cnt = 0;
+  if (current > +threshold)
   {
-    int cnt = 0;
-    while (current < -THRESHOLD)
-      current += THRESHOLD, cnt--;
-    return cnt;
+    while (current > +threshold)
+      current -= threshold, cnt++;
+    current = 0;
   }
-  return 0;
+  else if (current < -threshold)
+  {
+    while (current < -threshold)
+      current += threshold, cnt--;
+    current = 0;
+  }
+
+  return cnt;
 }
 
 double ERP_incrementTo360deg(int increment)

@@ -330,13 +330,18 @@ static inline BOOL examineContent(void const *const data, unsigned const len)
   static int sum;
 
   sum += delta;
+  if (sum < 0)
+    sum = 0;
+  if (sum > 2000)
+    sum = 2000;
 
 #if 01
   cursorUp(1);
   printf("#%lu\n", ++packetNumber);
   cursorUp(2);
-  printf("wiper 1 =%4u, wiper 2 =%4u, a=%7.1lf \n\n",
+  printf("wiper 1 =%4u, wiper 2 =%4u, x=%+06.1lf, a=%7.2lf \n\n",
          (unsigned) adcValues[0], (unsigned) adcValues[4],
+         (sum - 1000) / 10.,
          ERP_incrementTo360deg(sum));
   fflush(stdout);
 #endif
