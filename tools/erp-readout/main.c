@@ -327,24 +327,42 @@ static inline BOOL examineContent(void const *const data, unsigned const len)
 
   int delta = ERP_getIncrement(adcValues[0], adcValues[4]);
 
-  static int sum;
+  static int sum = 10000;
 
   sum += delta;
   if (sum < 0)
     sum = 0;
-  if (sum > 2000)
-    sum = 2000;
+  if (sum > 20000)
+    sum = 20000;
 
-#if 01
-  cursorUp(1);
-  printf("#%lu\n", ++packetNumber);
-  cursorUp(2);
-  printf("wiper 1 =%4u, wiper 2 =%4u, x=%+06.1lf, a=%7.2lf \n\n",
-         (unsigned) adcValues[0], (unsigned) adcValues[4],
-         (sum - 1000) / 10.,
-         ERP_incrementTo360deg(sum));
-  fflush(stdout);
+  static const char subs[10] = "0123456789";
+
+  if (delta)
+  {
+#if 0
+    printf(".");
+    fflush(stdout);
+    return TRUE;
 #endif
+
+    cursorUp(3);
+    int cols = 100 * sum / 20000;
+    printf("   ");
+    for (int i = 0; i < cols; i++)
+      printf("%c", i % 5 == 0 ? '.' : '_');
+    printf("%c", subs[(10 * 100 * sum / 20000) % 10]);
+    for (int i = cols + 1; i <= 100; i++)
+      printf("%c", i % 5 == 0 ? '.' : ' ');
+    printf("\n");
+
+    for (int i = 0; i < cols; i++)
+      printf(" ");
+    printf("%+07.2lf ", (sum - 10000) / 100.);
+    for (int i = cols + 3; i < 100; i++)
+      printf(" ");
+    printf("\n%+07.2lf\n", (sum - 10000) / 100.);
+    fflush(stdout);
+  }
 
   return TRUE;
 }

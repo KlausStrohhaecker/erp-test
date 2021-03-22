@@ -260,15 +260,17 @@ static int getAngleIncrement(int const angle)
   return result;
 }
 
-#define THRESHOLD ((22ll * ANGLE_360 * 1024ll * BUF_SIZE) / 36ll / 2000ll)
+#define THRESHOLD ((ANGLE_360 * 1024ll * BUF_SIZE) / 36000ll)
 #define BUF_SIZE  (128)
 
 int64_t ERP_getIncrement(int const w1, int const w2)
 {
 
   static int      increments[BUF_SIZE];
+  static int      velocities[BUF_SIZE];
   static unsigned idx;
-  static int      sum;
+  static int      avgdIncrement;
+  static int      avgdVelocity;
   static int      current, last;
   static int      fill = 2;
   static int      threshold;
@@ -278,8 +280,8 @@ int64_t ERP_getIncrement(int const w1, int const w2)
   // printf("a=%d\n", newAngle);
 
   idx = (idx + 1) % BUF_SIZE;
-  sum -= increments[idx];
-  sum += increment;
+  avgdIncrement -= increments[idx];
+  avgdIncrement += increment;
   increments[idx] = increment;
 
   if (fill)
@@ -287,28 +289,25 @@ int64_t ERP_getIncrement(int const w1, int const w2)
     if (idx == 0)
       if (!--fill)
       {
-        current   = sum;
-        threshold = THRESHOLD * 10;
+        current   = avgdIncrement;
+        threshold = THRESHOLD;
       }
     return 0;
   }
 
   last = current;
-  current += sum;
+  current += avgdIncrement;
 
-#define SLOW (220ll * THRESHOLD / 100ll)
-  int targetThreshold = THRESHOLD;
-  int diff            = abs(current - last);
-  if (diff < SLOW)
-  {
-    int factor      = 1420 - 1400 * diff / SLOW;
-    targetThreshold = THRESHOLD * factor / 20ll;
-  }
+  int velocity = abs(current - last);
+  avgdVelocity -= velocities[idx];
+  avgdVelocity += velocity;
+  velocities[idx] = velocity;
 
-  if (targetThreshold > threshold)
-    threshold += THRESHOLD / 512;
-  if (targetThreshold < threshold)
-    threshold -= targetThreshold / 64;
+  int velFactor = MAX(100, INT_MAX / avgdVelocity * 2);
+  velFactor     = MIN(300 * 100, velFactor);
+  // printf("%8d \n\033[1A", velFactor);
+
+  threshold = THRESHOLD * velFactor / 100;
 
   int cnt = 0;
   if (current > +threshold)
