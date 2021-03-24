@@ -260,18 +260,16 @@ static int getAngleIncrement(int const angle)
   return result;
 }
 
+#define BUF_SIZE  (192)
 #define THRESHOLD ((ANGLE_360 * 1024ll * BUF_SIZE) / 36000ll)
-#define BUF_SIZE  (128)
 
 int64_t ERP_getIncrement(int const w1, int const w2)
 {
 
   static int      increments[BUF_SIZE];
-  static int      velocities[BUF_SIZE];
-  static unsigned idx;
+  static unsigned idxI;
   static int      avgdIncrement;
-  static int      avgdVelocity;
-  static int      current, last;
+  static int      current;
   static int      fill = 2;
   static int      threshold;
 
@@ -279,14 +277,14 @@ int64_t ERP_getIncrement(int const w1, int const w2)
   int increment = getAngleIncrement(newAngle);
   // printf("a=%d\n", newAngle);
 
-  idx = (idx + 1) % BUF_SIZE;
-  avgdIncrement -= increments[idx];
+  idxI = (idxI + 1) % BUF_SIZE;
+  avgdIncrement -= increments[idxI];
   avgdIncrement += increment;
-  increments[idx] = increment;
+  increments[idxI] = increment;
 
   if (fill)
   {
-    if (idx == 0)
+    if (idxI == 0)
       if (!--fill)
       {
         current   = avgdIncrement;
@@ -295,35 +293,20 @@ int64_t ERP_getIncrement(int const w1, int const w2)
     return 0;
   }
 
-  last = current;
-  current += avgdIncrement;
-
-  int velocity = abs(current - last);
-  avgdVelocity -= velocities[idx];
-  avgdVelocity += velocity;
-  velocities[idx] = velocity;
-
-  int velFactor = MAX(100, INT_MAX / avgdVelocity * 2);
-  velFactor     = MIN(300 * 100, velFactor);
+  int velFactor = MAX(100, INT_MAX / (1 + abs(avgdIncrement) * 6000 / BUF_SIZE));
+  velFactor     = MIN(200 * 100, velFactor);
   // printf("%8d \n\033[1A", velFactor);
 
   threshold = THRESHOLD * velFactor / 100;
+  current += avgdIncrement;
 
-  int cnt = 0;
-  if (current > +threshold)
+  if (abs(current) > threshold)
   {
-    while (current > +threshold)
-      current -= threshold, cnt++;
-    current = 0;
+    int retval = current / threshold;
+    current    = 0;
+    return retval;
   }
-  else if (current < -threshold)
-  {
-    while (current < -threshold)
-      current += threshold, cnt--;
-    current = 0;
-  }
-
-  return cnt;
+  return 0;
 }
 
 double ERP_incrementTo360deg(int increment)
