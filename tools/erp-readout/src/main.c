@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
 #include <getopt.h>
@@ -14,7 +13,12 @@
 #include <fcntl.h>
 #include <alsa/asoundlib.h>
 
-#include "erp_decode.h"
+// qtcreator bugs
+#include </usr/include/stdarg.h>
+#undef NULL
+#define NULL ((void *) 0)
+
+#include "ERP_Decoder.h"
 
 #define PAYLOAD_BUFFER_SIZE (100000ul)
 
@@ -308,9 +312,6 @@ static inline void doSend(void)
 //
 // -------- functions for receiving --------
 //
-
-uint64_t packetCntr;
-
 static inline BOOL examineContent(void const *const data, unsigned const len)
 {
   if (len != 16)
@@ -319,12 +320,29 @@ static inline BOOL examineContent(void const *const data, unsigned const len)
     return FALSE;
   }
 
-  static uint64_t packetNumber;
-
   static uint16_t adcValues[8];
   for (int i = 0; i < 8; i++)
     adcValues[i] = ((uint16_t *) data)[i];
 
+  static int errors;
+  int        angle;
+  if (ERP_DecodeWipersToAngle(adcValues[0], adcValues[4], &angle) < 0)
+    cursorUp(1), printf(">>>%u<<<\n\n", ++errors);
+  else
+  {
+    float        angleF         = angle * ERP_AngleMultiplier360();
+    static float smoothedAngleF = 0.0;
+    smoothedAngleF              = smoothedAngleF - (0.03 * (smoothedAngleF - angleF));
+
+    static int total, oldAngle;
+    total += ERP_GetAngleDifference(angle, oldAngle);
+    oldAngle = angle;
+
+    printf("%+06.1lf %+9.1lf\n", angle * ERP_AngleMultiplier360(), total * ERP_AngleMultiplier360());
+  }
+  cursorUp(1);
+
+#if 0
   int delta = ERP_getIncrement(adcValues[0], adcValues[4]);
 
   static int sum = 10000;
@@ -363,6 +381,7 @@ static inline BOOL examineContent(void const *const data, unsigned const len)
     printf("\n%+07.2lf\n", (sum - 10000) / 100.);
     fflush(stdout);
   }
+#endif
 
   return TRUE;
 }
