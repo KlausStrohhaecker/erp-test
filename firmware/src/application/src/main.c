@@ -16,7 +16,7 @@
 #include "midi/MIDI_statemonitor.h"
 #include "sys/nl_version.h"
 #include "sys/ticker.h"
-#include "erp/erp.h"
+#include "erp/erp_test.h"
 
 void M4SysTick_Init(void);
 
