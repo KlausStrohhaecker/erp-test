@@ -16,9 +16,10 @@
 // qtcreator bugs
 #include </usr/include/stdarg.h>
 #undef NULL
-#define NULL ((void *) 0)
+#define NULL    ((void *) 0)
+#define INT_MAX (0x7FFFFFFFu)
 
-#include "ERP_Decoder.h"
+#include "ERP.h"
 
 #define PAYLOAD_BUFFER_SIZE (100000ul)
 
@@ -314,74 +315,95 @@ static inline void doSend(void)
 //
 static inline BOOL examineContent(void const *const data, unsigned const len)
 {
-  if (len != 16)
+  if (len != 6 * 4)
   {
     error("receive: payload has wrong length %d, expected %d", len, 16);
     return FALSE;
   }
 
-  static uint16_t adcValues[8];
-  for (int i = 0; i < 8; i++)
-    adcValues[i] = ((uint16_t *) data)[i];
+  int32_t const *const pErpData = data;
 
   static int errors;
-  int        angle;
-  if (ERP_DecodeWipersToAngle(adcValues[0], adcValues[4], &angle) < 0)
+  int        angle = pErpData[2];
+  if (angle == INT_MAX)
     cursorUp(1), printf(">>>%u<<<\n\n", ++errors);
   else
   {
+    static int oldAngle;
+#if 0
+    static int   total;
     float        angleF         = angle * ERP_AngleMultiplier360();
     static float smoothedAngleF = 0.0;
-    smoothedAngleF              = smoothedAngleF - (0.03 * (smoothedAngleF - angleF));
+    smoothedAngleF              = smoothedAngleF - (0.001 * (smoothedAngleF - angleF));
 
-    static int total, oldAngle;
     total += ERP_GetAngleDifference(angle, oldAngle);
     oldAngle = angle;
 
-    printf("%+06.1lf %+9.1lf\n", angle * ERP_AngleMultiplier360(), total * ERP_AngleMultiplier360());
-  }
-  cursorUp(1);
+    printf("%+06.1lf %+9.2lf\n", angle * ERP_AngleMultiplier360(), smoothedAngleF);
+    cursorUp(1);
 
-#if 0
-  int delta = ERP_getIncrement(adcValues[0], adcValues[4]);
+#else
 
-  static int sum = 10000;
+    int diff;
+    int delta = ERP_getDynamicIncrement(diff = ERP_GetAngleDifference(angle, oldAngle));
+    oldAngle  = angle;
 
-  sum += delta;
-  if (sum < 0)
-    sum = 0;
-  if (sum > 20000)
-    sum = 20000;
+    float        diffF         = diff * ERP_AngleMultiplier360();
+    static float smoothedDiffF = 0.0;
+    smoothedDiffF              = smoothedDiffF - (0.003 * (smoothedDiffF - diffF));
+    //printf("%+9.5lf\n", smoothedDiffF);
+    //cursorUp(1);
 
-  static const char subs[10] = "0123456789";
+    static int touched;
+    static int sum = 10000;
 
-  if (delta)
-  {
-#if 0
-    printf(".");
-    fflush(stdout);
-    return TRUE;
+    sum += delta;
+    if (sum < 0)
+      sum = 0;
+    if (sum > 20000)
+      sum = 20000;
+
+    int update = 0;
+
+    if (fabs(smoothedDiffF) > 0.002f)
+    {
+      touched = 300;
+      update  = 1;
+    }
+
+    if (touched > 0)
+      if (!--touched)
+        update = 1;
+
+    static const char subs[10] = "0123456789";
+
+    if (delta || update)
+    {
+      if (touched == 0)
+        touched = -1;
+      cursorUp(3);
+      int cols = 100 * sum / 20000;
+      printf("   ");
+      for (int i = 0; i < cols; i++)
+        printf("%c", i % 5 == 0 ? '.' : '_');
+      printf("%c", subs[(10 * 100 * sum / 20000) % 10]);
+      for (int i = cols + 1; i <= 100; i++)
+        printf("%c", i % 5 == 0 ? '.' : ' ');
+      printf("\n");
+
+      for (int i = 0; i < cols; i++)
+        printf(" ");
+
+      printf("%s%+07.2lf%s ", touched > 0 ? "\033[92m" : "", (sum - 10000) / 100.0, touched > 0 ? "\033[39m" : "");
+
+      for (int i = cols + 3; i < 100; i++)
+        printf(" ");
+      printf("\n%+07.2lf\n", (sum - 10000) / 100.);
+      fflush(stdout);
+    }
+
 #endif
-
-    cursorUp(3);
-    int cols = 100 * sum / 20000;
-    printf("   ");
-    for (int i = 0; i < cols; i++)
-      printf("%c", i % 5 == 0 ? '.' : '_');
-    printf("%c", subs[(10 * 100 * sum / 20000) % 10]);
-    for (int i = cols + 1; i <= 100; i++)
-      printf("%c", i % 5 == 0 ? '.' : ' ');
-    printf("\n");
-
-    for (int i = 0; i < cols; i++)
-      printf(" ");
-    printf("%+07.2lf ", (sum - 10000) / 100.);
-    for (int i = cols + 3; i < 100; i++)
-      printf(" ");
-    printf("\n%+07.2lf\n", (sum - 10000) / 100.);
-    fflush(stdout);
   }
-#endif
 
   return TRUE;
 }

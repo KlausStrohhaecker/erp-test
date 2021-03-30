@@ -124,9 +124,9 @@ typedef struct
   int16_t weight;
 } AngleData_t;
 
-static void mapWiperToAngleCandidates(int const wiperValue, int const wiperSelect, AngleData_t* const result);
-static int  angleDiff(int const a, int const b);
-static int  abs(int const x)
+static void       mapWiperToAngleCandidates(int const wiperValue, int const wiperSelect, AngleData_t* const result);
+static int        angleDiff(int const a, int const b);
+static inline int abs(int const x)
 {
   return (x < 0) ? -x : x;
 }

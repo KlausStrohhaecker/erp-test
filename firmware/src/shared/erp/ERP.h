@@ -21,6 +21,8 @@
 #define ERP_ANGLE_360    (2 * ERP_ANGLE_180)
 #define ERP_SCALE_FACTOR (ERP_ANGLE_360 * ERP_MIX_SCALING)
 
+// ---------------------------- DECODER --------------------
+
 // convert raw ADC wiper values [0...ERP_ADC_RANGE[ to a [-180, +180[ interval
 // returns angle value  on success, else
 //  INT_MAX : ADC values are unstable, not within accepted error bounds
@@ -41,3 +43,7 @@ static inline int ERP_Scalefactor360(void)
 // returns the distance between two absolute angles [-180, +180[
 // can never be larger than 180
 int ERP_GetAngleDifference(int const angle, int const previousAngle);
+
+// ---------------------------- QUANTIZER --------------------
+
+int ERP_getDynamicIncrement(int const increment);
