@@ -131,8 +131,8 @@ static struct
 } encodeData;
 #pragma pack(pop)
 
-uint8_t topBitsMask;
-int     fillCount;
+static uint8_t topBitsMask;
+static int     fillCount;
 
 static void flushAnyRemaingBuffer(FILE *outfile)
 {
@@ -234,7 +234,7 @@ int main(int argc, char *argv[])
   encodeAndWrite(inBuffer, bytes, outFile);
   flushAnyRemaingBuffer(outFile);
   total += bytes;
-  printf(" encoded %lu bytes of payload data.\n", total);
+  printf(" encoded %zu bytes of payload data.\n", total);
   fclose(inFile);
   printf(" firmware version ID found: %s\n", fwVersion);
 

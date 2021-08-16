@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <inttypes.h>
 #include <ctype.h>
 #include <getopt.h>
 #include <errno.h>
@@ -12,9 +13,11 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <alsa/asoundlib.h>
+#include <math.h>
 
 // qtcreator bugs
-#include </usr/include/stdarg.h>
+//#include </usr/include/stdarg.h>
+#include <stdarg.h>
 #undef NULL
 #define NULL    ((void *) 0)
 #define INT_MAX (0x7FFFFFFFu)
@@ -222,7 +225,7 @@ static inline void doSend(void)
       *p++ = val++;
 
     cursorUp(1);
-    printf("n:%lu, s:%5u\n", messageNo++, size);
+    printf("n:%" PRIu64 ", s:%5u\n", messageNo++, size);
     fflush(stdout);
 
     messageLen = encodeSysex(dataBuf, size, sendBuf);
@@ -315,6 +318,7 @@ static inline void doSend(void)
 //
 static inline BOOL examineContent(void const *const data, unsigned const len)
 {
+
   if (len != 6 * 4)
   {
     error("receive: payload has wrong length %d, expected %d", len, 16);
@@ -329,33 +333,27 @@ static inline BOOL examineContent(void const *const data, unsigned const len)
     cursorUp(1), printf(">>>%u<<<\n\n", ++errors);
   else
   {
-    static int oldAngle;
-#if 0
-    static int   total;
-    float        angleF         = angle * ERP_AngleMultiplier360();
-    static float smoothedAngleF = 0.0;
-    smoothedAngleF              = smoothedAngleF - (0.001 * (smoothedAngleF - angleF));
-
-    total += ERP_GetAngleDifference(angle, oldAngle);
-    oldAngle = angle;
-
-    printf("%+06.1lf %+9.2lf\n", angle * ERP_AngleMultiplier360(), smoothedAngleF);
-    cursorUp(1);
-
-#else
+    //printf("%8.2lf\n", (double) angle / ERP_SCALE_FACTOR);
+    //return TRUE;
+    //printf("%+9.3lf\n", angle * ERP_AngleMultiplier360()), cursorUp(1);
+    static int        oldAngle;
+    static const char green[]  = "\033[32;7;1m";
+    static const char normal[] = "\033[39;0m";
+    static char *     color    = normal;
 
     int diff;
-    int delta = ERP_getDynamicIncrement(diff = ERP_GetAngleDifference(angle, oldAngle));
+    int delta = ERP_getDynamicIncrement(diff = -10 * ERP_GetAngleDifference(angle, oldAngle));
     oldAngle  = angle;
 
-    float        diffF         = diff * ERP_AngleMultiplier360();
+#if 0
+    float        diffF         = angle * ERP_AngleMultiplier360();
     static float smoothedDiffF = 0.0;
-    smoothedDiffF              = smoothedDiffF - (0.003 * (smoothedDiffF - diffF));
-    //printf("%+9.5lf\n", smoothedDiffF);
-    //cursorUp(1);
+    smoothedDiffF              = smoothedDiffF - (0.002 * (smoothedDiffF - diffF));
+    printf("%+9.2lf\n", smoothedDiffF), cursorUp(1);
+#endif
 
-    static int touched;
-    static int sum = 10000;
+    static int      sum       = 10000;
+    static uint64_t touchTime = 0;
 
     sum += delta;
     if (sum < 0)
@@ -365,22 +363,27 @@ static inline BOOL examineContent(void const *const data, unsigned const len)
 
     int update = 0;
 
-    if (fabs(smoothedDiffF) > 0.002f)
-    {
-      touched = 300;
-      update  = 1;
-    }
+    //printf("%8d\n", delta), cursorUp(1);
 
-    if (touched > 0)
-      if (!--touched)
+    if (delta)  //fabs(smoothedDiffF) > 0.005f)
+    {
+      update    = 1;
+      touchTime = getTimeUSec();
+      color     = green;
+    }
+    else
+    {
+      if ((getTimeUSec() - touchTime) > 500000)
+      {
         update = 1;
+        color  = normal;
+      }
+    }
 
     static const char subs[10] = "0123456789";
 
-    if (delta || update)
+    if (update)
     {
-      if (touched == 0)
-        touched = -1;
       cursorUp(3);
       int cols = 100 * sum / 20000;
       printf("   ");
@@ -394,15 +397,14 @@ static inline BOOL examineContent(void const *const data, unsigned const len)
       for (int i = 0; i < cols; i++)
         printf(" ");
 
-      printf("%s%+07.2lf%s ", touched > 0 ? "\033[92m" : "", (sum - 10000) / 100.0, touched > 0 ? "\033[39m" : "");
+      printf("%s%+07.2lf%s ", color, (sum - 10000) / 100.0, normal);
 
       for (int i = cols + 3; i < 100; i++)
         printf(" ");
-      printf("\n%+07.2lf\n", (sum - 10000) / 100.);
+
+      printf("\n%s%+07.2lf%s\n", color, (sum - 10000) / 100., normal);
       fflush(stdout);
     }
-
-#endif
   }
 
   return TRUE;

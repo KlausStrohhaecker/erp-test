@@ -6,5 +6,5 @@ project(erp-test)
 set(FIRMWARE_DIRNAME firmware)
 set(TOOLS_DIRNAME    tools)
 
-add_subdirectory(${FIRMWARE_DIRNAME})
+#add_subdirectory(${FIRMWARE_DIRNAME})
 add_subdirectory(${TOOLS_DIRNAME})
