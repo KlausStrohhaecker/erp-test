@@ -24,6 +24,8 @@
 
 #include "ERP.h"
 
+static struct ERP_Quantizer_t *quantizer;
+
 #define PAYLOAD_BUFFER_SIZE (100000ul)
 
 #define RAW_TX_BUFFER_SIZE (PAYLOAD_BUFFER_SIZE * 2ul)  // need headroom for 8-to-7 bit encoding of the payload
@@ -117,7 +119,7 @@ static inline void closePort(void)
 static void sigHandler(int dummy)
 {
   stop  = TRUE;
-  dummy = dummy;
+  dummy = 0;
 }
 
 static uint64_t getTimeUSec(void)
@@ -336,13 +338,13 @@ static inline BOOL examineContent(void const *const data, unsigned const len)
     //printf("%8.2lf\n", (double) angle / ERP_SCALE_FACTOR);
     //return TRUE;
     //printf("%+9.3lf\n", angle * ERP_AngleMultiplier360()), cursorUp(1);
-    static int        oldAngle;
-    static const char green[]  = "\033[32;7;1m";
-    static const char normal[] = "\033[39;0m";
-    static char *     color    = normal;
+    static int   oldAngle;
+    static char  green[]  = "\033[32;7;1m";
+    static char  normal[] = "\033[39;0m";
+    static char *color    = normal;
 
     int diff;
-    int delta = ERP_getDynamicIncrement(diff = -10 * ERP_GetAngleDifference(angle, oldAngle));
+    int delta = ERP_getDynamicIncrement(quantizer, diff = -10 * ERP_GetAngleDifference(angle, oldAngle));
     oldAngle  = angle;
 
 #if 0
@@ -480,17 +482,18 @@ static inline void doReceive(void)
   snd_rawmidi_status_t *pStatus;
   snd_rawmidi_status_alloca(&pStatus);
 
-#if 01
   snd_rawmidi_params_t *pParams;
-
   snd_rawmidi_params_alloca(&pParams);
 
-  if ((err = snd_rawmidi_params_set_buffer_size(port, pParams, sizeof buf)) < 0)
+  snd_rawmidi_params_current(port, pParams);
+  snd_rawmidi_params_set_buffer_size(port, pParams, sizeof buf);
+  snd_rawmidi_params(port, pParams);
+  snd_rawmidi_params_current(port, pParams);
+  if (snd_rawmidi_params_get_buffer_size(pParams) != sizeof buf)
   {
-    error("cannot set receive buffer size of %d : %s", sizeof buf, snd_strerror(err));
+    error("cannot set send buffer size of %d", sizeof buf);
     return;
   }
-#endif
 
   if ((err = snd_rawmidi_nonblock(port, 1)) < 0)
   {
@@ -502,6 +505,23 @@ static inline void doReceive(void)
   pfds  = alloca(npfds * sizeof(struct pollfd));
   snd_rawmidi_poll_descriptors(port, pfds, npfds);
   signal(SIGINT, sigHandler);
+
+  ERP_QuantizerInit_t erpInitData = {
+    .sampleRate               = 2000,           // 2kHz
+    .velocityStart            = 20,             // low speed : 20 deg/sec
+    .velocityStop             = 1500,           // high speed : 1000 deg/sec
+    .incrementsPerDegreeStart = 0.3,            // fine resolution
+    .incrementsPerDegreeStop  = 20000. / 180.,  // coarse resolution : 20000 increments over 180 deg of rotation
+    .splitPointVelocity       = 0.1,            // at this point within the transition region...
+    .splitPointIncrement      = 0.3,            // ...this is the output scale factor
+  };
+
+  quantizer = ERP_InitQuantizer(erpInitData);
+  if (!quantizer)
+  {
+    error("cannot initialize ERP quantizer");
+    return;
+  }
 
   printf("Receiving data from port: %s\n\n\n", pName);
 
@@ -562,6 +582,8 @@ static inline void doReceive(void)
       break;
     }
   } while (TRUE);
+
+  ERP_ExitQuantizer(quantizer);
 
   printf("\n");
   fflush(stdout);

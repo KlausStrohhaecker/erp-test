@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdint.h>
+
 #define ERP_ADC_RANGE (1024)  // 10 bits
 
 // Extrapolated percent value where the slope hits 90 degree, at point 'S'.
@@ -46,4 +48,26 @@ int ERP_GetAngleDifference(int const angle, int const previousAngle);
 
 // ---------------------------- QUANTIZER --------------------
 
-int ERP_getDynamicIncrement(int const increment);
+typedef enum
+{
+  ERP_TRANS_CONVEX,
+  ERP_TRANS_LINEAR,
+  ERP_TRANS_CONCAVE
+} decelerationCurve_t;
+
+typedef struct
+{
+  uint16_t sampleRate;                // Hz, [500...5000]
+  uint16_t velocityStart;             // start velocity for deceleration (>= 0, <= 3000 deg/sec), moderate movements give values ~500deg/s
+  uint16_t velocityStop;              // stop velocity for deceleration (>= start, <= 3000 deg/sec)
+  float    incrementsPerDegreeStart;  // start (fine) resolution in increments per degrees units, <= 10 incr/deg
+  float    incrementsPerDegreeStop;   // stop (coarse) resolution in increments per degrees units, normally > start;
+  float    splitPointVelocity;        // split point ]0...1[  0.5 -> center
+  float    splitPointIncrement;       // split point ]0...1[  0.5 -> center
+} ERP_QuantizerInit_t;
+
+struct ERP_Quantizer_t;
+
+void *ERP_InitQuantizer(const ERP_QuantizerInit_t initData);
+int   ERP_ExitQuantizer(void *const quantizer);
+int   ERP_getDynamicIncrement(void *const quantizer, int const increment);

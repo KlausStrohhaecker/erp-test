@@ -1,114 +1,140 @@
-#include <stdint.h>
 #define INT_MAX (0x7FFFFFFFu)
 
-#include <stdio.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <math.h>
 
 #include "ERP.h"
+#include "interpol.h"
 
 // ----------------------------------------------------
 
-// setup parameters:
-// =================
+#define ERP_AVERAGING_TIME_ms (100ll)  // 100ms floating window average
+#define ERP_FILTER_TIME_CONST (0.5)    // velocity lowpass filter time constant (in seconds)
 
-// Larger averaging buffers give more smoothing but also lagging behavior, for a
-#define ERP_BUF_SIZE (192)
+// fixed process constants
+#define ERP_TICKS_PER_DEGREE (100ll)  // 0.01 degree/increment is finest possible range just at the noise threshold
 
-// This the lowest stable (noise-free) resolution, and yields 10 ticks per degree (or 0.1 degrees/tick)
-// Actual dynamic thresholds should range from 0.1x to 10x this value
-// 10x (1 tick/degree) gives feasible control of the smallest ticks,
-// while 0.1x (100 ticks/degree) allows a 200° turn span a range of 0..20000, for example
-#define ERP_THRESHOLD ((ERP_SCALE_FACTOR * ERP_BUF_SIZE) / 3600ll)
+#define ERP_INCR_SCALE_FACTOR (128)
 
-static inline int32_t abs32(int32_t const x)
+typedef struct
 {
-  return (x < 0) ? -x : x;
+  ERP_QuantizerInit_t initData;
+  int64_t *           buffer;
+  unsigned            bufSize;
+  unsigned            bufIndex;
+  int64_t             bufAverage;
+  int64_t             summedAverage;
+  int64_t             summedTicks;
+  double              lambda;
+  double              ticksSmoothed;
+  int                 fill;
+  int64_t             fineThreshold;
+  int32_t             table_x[3];
+  int32_t             table_y[3];
+  LIB_interpol_data_T table;
+} ERP_Quantizer_t;
+
+void *ERP_InitQuantizer(const ERP_QuantizerInit_t initData)
+{
+  ERP_Quantizer_t *quantizer = malloc(sizeof(ERP_Quantizer_t));
+  if (!quantizer)
+    return (void *) 0;
+
+  // buffer size = averaging time * sample rate
+  quantizer->bufSize = ERP_AVERAGING_TIME_ms * initData.sampleRate / 1000u;
+  quantizer->buffer  = calloc(quantizer->bufSize, sizeof(quantizer->buffer[0]));
+  if (!quantizer->buffer)
+  {
+    free(quantizer);
+    return (void *) 0;
+  }
+  quantizer->initData       = initData;
+  quantizer->fill           = 2;
+  quantizer->bufIndex       = 0;
+  quantizer->lambda         = 1.0 - exp(-1 / ERP_FILTER_TIME_CONST / initData.sampleRate);
+  quantizer->ticksSmoothed  = 0.0;
+  quantizer->fineThreshold  = ERP_SCALE_FACTOR * quantizer->bufSize / 3600ll;
+  quantizer->table_x[0]     = initData.velocityStart;
+  quantizer->table_x[2]     = initData.velocityStop;
+  quantizer->table_x[1]     = initData.velocityStart + (quantizer->table_x[2] - quantizer->table_x[0]) * initData.splitPointVelocity;
+  quantizer->table_y[0]     = ERP_INCR_SCALE_FACTOR * initData.incrementsPerDegreeStart;
+  quantizer->table_y[2]     = ERP_INCR_SCALE_FACTOR * initData.incrementsPerDegreeStop;
+  quantizer->table_y[1]     = quantizer->table_y[0] + (quantizer->table_y[2] - quantizer->table_y[0]) * initData.splitPointIncrement;
+  quantizer->table.points   = 3;
+  quantizer->table.x_values = quantizer->table_x;
+  quantizer->table.y_values = quantizer->table_y;
+  return (void *) quantizer;
 }
+
+int ERP_ExitQuantizer(void *const quantizer)
+{
+  if (!quantizer)
+    return 0;
+  ERP_Quantizer_t *q = quantizer;
+  if (q->buffer)
+    free(q->buffer);
+  free(quantizer);
+  return 1;
+}
+
 static inline int64_t abs64(int64_t const x)
 {
   return (x < 0) ? -x : x;
 }
-#define MAX(x, y) (((x) > (y)) ? (x) : (y))
-#define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
-int ERP_getDynamicIncrement(int const increment)
+static inline uint64_t lookUpDynamicThreshold(ERP_Quantizer_t *const q, int const ticks)
 {
+  q->ticksSmoothed      = q->ticksSmoothed - (q->lambda * (q->ticksSmoothed - (double) abs(ticks)));  // number of 0.1deg ticks per 500us
+  int      degPerSecond = (int) (q->initData.sampleRate * q->ticksSmoothed / ERP_TICKS_PER_DEGREE);   // * sample rate / ticks per degree ==> degrees per second
+  uint64_t result       = ERP_INCR_SCALE_FACTOR * ERP_TICKS_PER_DEGREE * q->fineThreshold / LIB_InterpolateValue(&(q->table), degPerSecond);
+  printf("\n%6d \033[1A", degPerSecond);
+  return result;
+}
 
-  static int      increments[ERP_BUF_SIZE];
-  static unsigned idxI;
-  static int64_t  avgdIncrement;
-  static int64_t  current;
-  static int      fill = 2;
-  static int      threshold;
-  static int64_t  tickAccu;
+int ERP_getDynamicIncrement(void *const quantizer, int const increment)
+{
+  ERP_Quantizer_t *const q = quantizer;
 
-  // printf("a=%d\n", newAngle);
+  q->bufIndex = (q->bufIndex + 1) % q->bufSize;
+  q->bufAverage -= q->buffer[q->bufIndex];
+  q->bufAverage += increment;
+  q->buffer[q->bufIndex] = increment;
 
-  idxI = (idxI + 1) % ERP_BUF_SIZE;
-  avgdIncrement -= increments[idxI];
-  avgdIncrement += increment;
-  increments[idxI] = increment;
-
-  if (fill)
+  if (q->fill)
   {
-    if (idxI == 0)
-      if (!--fill)
-      {
-        tickAccu = current = avgdIncrement;
-        threshold          = ERP_THRESHOLD;
-      }
+    if (q->bufIndex == 0)
+      if (!--(q->fill))
+        q->summedTicks = q->summedAverage = q->bufAverage;
     return 0;
   }
 
   // determine velocity
-  tickAccu += avgdIncrement;
+  q->summedTicks += q->bufAverage;
   int ticks = 0;
-  if (abs64(tickAccu) > ERP_THRESHOLD)
+  if (abs64(q->summedTicks) > q->fineThreshold)
   {
-    ticks = (int) tickAccu / ERP_THRESHOLD;
+    ticks = (int) q->summedTicks / q->fineThreshold;
     if (ticks >= 0)
-      tickAccu = tickAccu % ERP_THRESHOLD;
+      q->summedTicks = q->summedTicks % q->fineThreshold;
     else
-      tickAccu = -(-tickAccu % ERP_THRESHOLD);
+      q->summedTicks = -(-q->summedTicks % q->fineThreshold);
   }
-  static double ticksSmoothed = 0;
-  ticksSmoothed               = ticksSmoothed - (0.02 * (ticksSmoothed - (double) abs(ticks)));  // number of 0.1deg ticks per 500us
-  int        degPerSecond     = (int) (2000. * ticksSmoothed / 10.);                             // * sample rate / ticks per degree ==> degrees per second
-  static int maxDegPerSecond  = 0;
-  if (degPerSecond > maxDegPerSecond)
-    maxDegPerSecond = degPerSecond;
-  printf("%5d %5d\n\033[1A", degPerSecond, maxDegPerSecond);
-  // degPerSecond with typical knob ranges from 0deg/s to about 3000deg/s
-  // moderate movements give values ~500deg/s
 
-  // map velocity to resolution (=degrees per increment)
-  // - below a certain velocity --> use base resolution
-  // - above a certain velocity --> use base resolution times multiplier
-  // - in between: interpolate along a curvature (3 curvatures: convex, linear, concave)
-  // So, dynamic acceleration has following setup parameters:
-  //    min velocity          (>= 0 deg/s)
-  //    max velocity          (>= min velocity  && <= 3000deg/s)
-  //    base resolution       (>= 0.1deg/incr)
-  //    resolution multiplier (>= 1.0)
-  //    transition curvature select
-  // TODO: use a lookup-table with interpolation
-  if (degPerSecond < 5)
-    degPerSecond = 5;
-  if (degPerSecond > 2000)
-    degPerSecond = 2000;
+  long threshold = lookUpDynamicThreshold(q, ticks);
 
-  threshold = (ERP_THRESHOLD * 3000ll) / degPerSecond;
-
-  current += avgdIncrement;
-  if (abs64(current) > threshold)
+  q->summedAverage += q->bufAverage;
+  if (abs64(q->summedAverage) > threshold)
   {
-    int retval = (int) (current / threshold);
-    //printf("%8d \n\033[1A", retval);
+    int retval = (int) (q->summedAverage / threshold);
+#if PRECISION_SNAPPOINT
     if (retval >= 0)
-      current = current % threshold;
+      q->summedAverage = q->summedAverage % threshold;
     else
-      current = -(-current % threshold);
+      q->summedAverage = -(-q->summedAverage % threshold);
+#else
+    q->summedAverage = 0;
+#endif
     return retval;
   }
   return 0;
