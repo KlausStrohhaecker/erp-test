@@ -57,13 +57,19 @@ typedef enum
 
 typedef struct
 {
-  uint16_t sampleRate;                // Hz, [500...5000]
+  uint16_t sampleRate;         // Hz, [500...5000]
+  float    filterTimeConst;    // velocity lowpass filter time constant (in seconds)
+  int      adaptiveFiltering;  // flag for dynamic time constant, tc ~ 1/velocity (at low velocities)
+  float    slidingWindowTime;  // increments sliding window average (in seconds)
+
+  // linear interpolation with four points to allow for some curvature
+  // velocity points must be monotonically rising !
   uint16_t velocityStart;             // start velocity for deceleration (>= 0, <= 3000 deg/sec), moderate movements give values ~500deg/s
   uint16_t velocityStop;              // stop velocity for deceleration (>= start, <= 3000 deg/sec)
   float    incrementsPerDegreeStart;  // start (fine) resolution in increments per degrees units, <= 10 incr/deg
   float    incrementsPerDegreeStop;   // stop (coarse) resolution in increments per degrees units, normally > start;
-  float    splitPointVelocity;        // split point ]0...1[  0.5 -> center
-  float    splitPointIncrement;       // split point ]0...1[  0.5 -> center
+  float    splitPointVelocity[2];     // split point ]0...1[  0.5 -> center
+  float    splitPointIncrement[2];    // split point ]0...1[  0.5 -> center
 } ERP_QuantizerInit_t;
 
 struct ERP_Quantizer_t;
@@ -71,3 +77,4 @@ struct ERP_Quantizer_t;
 void *ERP_InitQuantizer(const ERP_QuantizerInit_t initData);
 int   ERP_ExitQuantizer(void *const quantizer);
 int   ERP_getDynamicIncrement(void *const quantizer, int const increment);
+int   ERP_touched(void *const quantizer);

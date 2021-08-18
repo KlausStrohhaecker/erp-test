@@ -348,10 +348,10 @@ static inline BOOL examineContent(void const *const data, unsigned const len)
     oldAngle  = angle;
 
 #if 0
-    float        diffF         = angle * ERP_AngleMultiplier360();
-    static float smoothedDiffF = 0.0;
-    smoothedDiffF              = smoothedDiffF - (0.002 * (smoothedDiffF - diffF));
-    printf("%+9.2lf\n", smoothedDiffF), cursorUp(1);
+    double        diffF         = angle * ERP_AngleMultiplier360();
+    static double smoothedDiffF = 0.0;
+    smoothedDiffF               = smoothedDiffF - (0.003 * (smoothedDiffF - diffF));
+    printf("%+6.1lf\n", smoothedDiffF), cursorUp(1);
 #endif
 
     static int      sum       = 10000;
@@ -367,7 +367,7 @@ static inline BOOL examineContent(void const *const data, unsigned const len)
 
     //printf("%8d\n", delta), cursorUp(1);
 
-    if (delta)  //fabs(smoothedDiffF) > 0.005f)
+    if (ERP_touched(quantizer))
     {
       update    = 1;
       touchTime = getTimeUSec();
@@ -375,7 +375,7 @@ static inline BOOL examineContent(void const *const data, unsigned const len)
     }
     else
     {
-      if ((getTimeUSec() - touchTime) > 500000)
+      if ((getTimeUSec() - touchTime) > 100000)
       {
         update = 1;
         color  = normal;
@@ -508,12 +508,17 @@ static inline void doReceive(void)
 
   ERP_QuantizerInit_t erpInitData = {
     .sampleRate               = 2000,           // 2kHz
-    .velocityStart            = 20,             // low speed : 20 deg/sec
-    .velocityStop             = 1500,           // high speed : 1000 deg/sec
-    .incrementsPerDegreeStart = 0.3,            // fine resolution
+    .filterTimeConst          = 0.1,            // velocity lowpass
+    .adaptiveFiltering        = 1,              // enabled
+    .slidingWindowTime        = 0.1,            // increment averaging window
+    .velocityStart            = 1,              // low speed
+    .velocityStop             = 1000,           // high speed
+    .incrementsPerDegreeStart = 0.01,           // fine resolution
     .incrementsPerDegreeStop  = 20000. / 180.,  // coarse resolution : 20000 increments over 180 deg of rotation
-    .splitPointVelocity       = 0.1,            // at this point within the transition region...
-    .splitPointIncrement      = 0.3,            // ...this is the output scale factor
+    .splitPointVelocity[0]    = 0.1,            // at this point within the transition region...
+    .splitPointIncrement[0]   = 0.01,           // ...this is the output scale factor
+    .splitPointVelocity[1]    = 0.3,            // at this point within the transition region...
+    .splitPointIncrement[1]   = 0.1,            // ...this is the output scale factor
   };
 
   quantizer = ERP_InitQuantizer(erpInitData);
