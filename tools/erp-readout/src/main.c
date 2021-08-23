@@ -320,10 +320,27 @@ static inline void doSend(void)
 //
 static inline BOOL examineContent(void const *const data, unsigned const len)
 {
-
-  if (len != 6 * 4)
+  static uint64_t time    = 0;
+  uint64_t        now     = getTimeUSec();
+  static int      maxTime = 0;
+  static int      minTime = (int) -1;
+  if (time != 0)
   {
-    error("receive: payload has wrong length %d, expected %d", len, 16);
+    int diff = (int) 30 * (now - time);
+    if (diff > maxTime)
+      maxTime = diff;
+    if (diff < minTime)
+      minTime = diff;
+    printf("%8dus  %8dus  %8dus\n\033[1A", maxTime / 30, minTime / 30, (maxTime + minTime) / 60);
+  }
+  if (maxTime)
+    maxTime--;
+  minTime++;
+  time = now;
+
+  if (len != (2 + 128) * 4)
+  {
+    error("receive: payload has wrong length %d, expected %d", len, (2 + 128) * 4);
     return FALSE;
   }
 
