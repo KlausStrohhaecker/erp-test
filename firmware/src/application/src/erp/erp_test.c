@@ -21,12 +21,12 @@ void ERP_Init(void)
 
 static void process(void)
 {
-  static int32_t erpData[6] = { 2000, ERP_SCALE_FACTOR };  // sample rate, scale factor, 4x ERP angle value
+  static int32_t erpData[2 + 128] = { 2000, ERP_SCALE_FACTOR };  // sample rate, scale factor, 32x ERP angle value
 
   for (int i = 0; i < 4; i++)
     erpData[i + 2] = ERP_DecodeWipersToAngle((LPC_ADC0->DR[i] & 0xFFFF) >> 6, (LPC_ADC0->DR[i + 4] & 0xFFFF) >> 6);
 
-  static uint8_t sysexBuffer[64];
+  static uint8_t sysexBuffer[sizeof (erpData) * 2];
 
   uint16_t size = MIDI_encodeRawSysex((uint8_t *) &erpData[0], sizeof(erpData), sysexBuffer);
   SendERP(sysexBuffer, size);

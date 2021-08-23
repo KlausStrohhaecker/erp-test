@@ -259,8 +259,7 @@ void SendERP(uint8_t *buff, uint32_t len)
   OP = &packetTransfer[0];
 
   if (!t->outgoingTransfer->online)
-    return;
-
+	return;
   if (t->state != IDLE)
   {
     SMON_monitorEvent(t->portNo, DROPPED_INCOMING);
