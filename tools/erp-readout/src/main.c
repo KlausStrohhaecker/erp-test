@@ -354,8 +354,7 @@ static inline BOOL examineContent(void const *const data, unsigned const len)
     printf("%+6.1lf\n", smoothedDiffF), cursorUp(1);
 #endif
 
-    static int      sum       = 10000;
-    static uint64_t touchTime = 0;
+    static int sum = 10000;
 
     sum += delta;
     if (sum < 0)
@@ -367,20 +366,16 @@ static inline BOOL examineContent(void const *const data, unsigned const len)
 
     //printf("%8d\n", delta), cursorUp(1);
 
-    if (ERP_touched(quantizer))
+    static int touched = 1;
+
+    if (touched != ERP_touched(quantizer))
     {
-      update    = 1;
-      touchTime = getTimeUSec();
-      color     = green;
+      update  = 1;
+      touched = !touched;
+      color   = touched ? green : normal;
     }
-    else
-    {
-      if ((getTimeUSec() - touchTime) > 100000)
-      {
-        update = 1;
-        color  = normal;
-      }
-    }
+    if (delta)
+      update = 1;
 
     static const char subs[10] = "0123456789";
 

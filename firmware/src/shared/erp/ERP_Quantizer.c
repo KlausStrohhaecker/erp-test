@@ -35,6 +35,7 @@ typedef struct
   int32_t             table_y[4];
   LIB_interpol_data_T table;
   uint16_t            activity;
+  uint16_t            activityTimer;
 } ERP_Quantizer_t;
 
 void *ERP_InitQuantizer(const ERP_QuantizerInit_t initData)
@@ -127,8 +128,10 @@ int ERP_getDynamicIncrement(void *const quantizer, int const increment)
   }
 
   // determine touch
-#define TOUCH_THRESHOLD (1.0)
-  q->bufAverageSmoothed = q->bufAverageSmoothed - (0.00003 * (q->bufAverageSmoothed - q->bufAverage));
+  // TODO : dependencies on sample rate, buffer size, etc. Allow some user parametrization
+#define TOUCH_THRESHOLD (1.5)
+#define TOUCH_TIMEOUT   (200)  // 100msec @2kHzSR
+  q->bufAverageSmoothed = q->bufAverageSmoothed - (0.00003 * (q->bufAverageSmoothed - (double) q->bufAverage));
   if (q->bufAverageSmoothed > TOUCH_THRESHOLD)
     q->bufAverageSmoothed = TOUCH_THRESHOLD;
   if (q->bufAverageSmoothed < -TOUCH_THRESHOLD)
@@ -138,14 +141,23 @@ int ERP_getDynamicIncrement(void *const quantizer, int const increment)
   {
     q->activity = fabs(q->bufAverageSmoothed) > TOUCH_THRESHOLD * 0.9;
     if (q->activity)
-      q->bufAverageSmoothed = TOUCH_THRESHOLD;
+    {
+      if (q->bufAverageSmoothed > 0)
+        q->bufAverageSmoothed = TOUCH_THRESHOLD;
+      else
+        q->bufAverageSmoothed = -TOUCH_THRESHOLD;
+    }
   }
   else
   {
-    q->activity = fabs(q->bufAverageSmoothed) > TOUCH_THRESHOLD * 0.6;
+    q->activity = fabs(q->bufAverageSmoothed) > TOUCH_THRESHOLD * 0.8;
     if (!q->activity)
       q->bufAverageSmoothed = 0.0;
   }
+
+  if (q->activity)
+    q->activityTimer = TOUCH_TIMEOUT;
+
   printf("%8.2lf \033[1A\n", q->bufAverageSmoothed);
 
   // determine velocity
@@ -179,7 +191,10 @@ int ERP_getDynamicIncrement(void *const quantizer, int const increment)
 #endif
   }
   if (retval != 0)
-    q->activity = 1;
+    q->activityTimer = 1000;
+
+  if (q->activityTimer)
+    q->activityTimer--;
 
   return retval;
 }
@@ -187,5 +202,5 @@ int ERP_getDynamicIncrement(void *const quantizer, int const increment)
 int ERP_touched(void *const quantizer)
 {
   ERP_Quantizer_t *const q = quantizer;
-  return q->activity != 0;
+  return q->activityTimer > 0;
 }
