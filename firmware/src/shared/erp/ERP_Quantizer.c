@@ -158,7 +158,7 @@ int ERP_getDynamicIncrement(void *const quantizer, int const increment)
   if (q->activity)
     q->activityTimer = TOUCH_TIMEOUT;
 
-  printf("%8.2lf \033[1A\n", q->bufAverageSmoothed);
+  // printf("%8.2lf \033[1A\n", q->bufAverageSmoothed);
 
   // determine velocity
   q->summedTicks += q->bufAverage;
