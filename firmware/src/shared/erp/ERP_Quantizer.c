@@ -45,7 +45,7 @@ void *ERP_InitQuantizer(const ERP_QuantizerInit_t initData)
     return (void *) 0;
 
   // buffer size = averaging time * sample rate
-  quantizer->bufSize = initData.slidingWindowTime * initData.sampleRate;
+  quantizer->bufSize = (unsigned) lround(initData.slidingWindowTime * initData.sampleRate);
   quantizer->buffer  = calloc(quantizer->bufSize, sizeof(quantizer->buffer[0]));
   if (!quantizer->buffer)
   {
@@ -55,21 +55,22 @@ void *ERP_InitQuantizer(const ERP_QuantizerInit_t initData)
   quantizer->initData = initData;
   quantizer->fill     = 2;
   quantizer->bufIndex = 0;
-  float timeConst     = initData.filterTimeConst;
+  double timeConst    = initData.filterTimeConst;
   if (initData.adaptiveFiltering)
     timeConst *= 10.0;
-  quantizer->lambda         = 1.0 - exp(-1 / timeConst / initData.sampleRate);
-  quantizer->workingLambda  = quantizer->lambda;
-  quantizer->ticksSmoothed  = 0.0;
-  quantizer->fineThreshold  = ERP_SCALE_FACTOR * quantizer->bufSize / 3600ll;
-  quantizer->table_x[0]     = initData.velocityStart;
-  quantizer->table_x[3]     = initData.velocityStop;
-  quantizer->table_x[1]     = initData.velocityStart + (quantizer->table_x[2] - quantizer->table_x[0]) * initData.splitPointVelocity[0];
-  quantizer->table_x[2]     = initData.velocityStart + (quantizer->table_x[2] - quantizer->table_x[0]) * initData.splitPointVelocity[1];
-  quantizer->table_y[0]     = ERP_INCR_SCALE_FACTOR * initData.incrementsPerDegreeStart;
-  quantizer->table_y[3]     = ERP_INCR_SCALE_FACTOR * initData.incrementsPerDegreeStop;
-  quantizer->table_y[1]     = quantizer->table_y[0] + (quantizer->table_y[2] - quantizer->table_y[0]) * initData.splitPointIncrement[0];
-  quantizer->table_y[2]     = quantizer->table_y[0] + (quantizer->table_y[2] - quantizer->table_y[0]) * initData.splitPointIncrement[1];
+  quantizer->lambda        = 1.0 - exp(-1.0 / timeConst / initData.sampleRate);
+  quantizer->workingLambda = quantizer->lambda;
+  quantizer->ticksSmoothed = 0.0;
+  quantizer->fineThreshold = ERP_SCALE_FACTOR * quantizer->bufSize / 3600ll;
+  quantizer->table_x[0]    = initData.velocityStart;
+  quantizer->table_x[3]    = initData.velocityStop;
+  quantizer->table_x[1]    = (int32_t) lround(initData.velocityStart + (quantizer->table_x[2] - quantizer->table_x[0]) * initData.splitPointVelocity[0]);
+  quantizer->table_x[2]    = (int32_t) lround(initData.velocityStart + (quantizer->table_x[2] - quantizer->table_x[0]) * initData.splitPointVelocity[1]);
+  quantizer->table_y[0]    = (int32_t) lround(ERP_INCR_SCALE_FACTOR * initData.incrementsPerDegreeStart);
+  quantizer->table_y[3]
+      = (int32_t) lround(ERP_INCR_SCALE_FACTOR * initData.incrementsPerDegreeStop);
+  quantizer->table_y[1]     = (int32_t) lround(quantizer->table_y[0] + (quantizer->table_y[2] - quantizer->table_y[0]) * initData.splitPointIncrement[0]);
+  quantizer->table_y[2]     = (int32_t) lround(quantizer->table_y[0] + (quantizer->table_y[2] - quantizer->table_y[0]) * initData.splitPointIncrement[1]);
   quantizer->table.points   = 4;
   quantizer->table.x_values = quantizer->table_x;
   quantizer->table.y_values = quantizer->table_y;
@@ -96,7 +97,7 @@ static inline uint64_t lookUpDynamicThreshold(ERP_Quantizer_t *const q, int cons
 {
   q->ticksSmoothed      = q->ticksSmoothed - (q->workingLambda * (q->ticksSmoothed - (double) abs(ticks)));  // number of 0.1deg ticks per 500us
   int      degPerSecond = (int) (q->initData.sampleRate * q->ticksSmoothed / ERP_TICKS_PER_DEGREE);          // * sample rate / ticks per degree ==> degrees per second
-  uint64_t result       = ERP_INCR_SCALE_FACTOR * ERP_TICKS_PER_DEGREE * q->fineThreshold / LIB_InterpolateValue(&(q->table), degPerSecond);
+  uint64_t result       = (uint64_t) lround(ERP_INCR_SCALE_FACTOR * ERP_TICKS_PER_DEGREE * q->fineThreshold / LIB_InterpolateValue(&(q->table), degPerSecond));
   //printf("%6d ", degPerSecond);
   if (q->initData.adaptiveFiltering)
   {
@@ -172,7 +173,7 @@ int ERP_getDynamicIncrement(void *const quantizer, int const increment)
       q->summedTicks = -(-q->summedTicks % q->fineThreshold);
   }
 
-  int64_t threshold = lookUpDynamicThreshold(q, ticks);
+  int64_t threshold = (int64_t) lookUpDynamicThreshold(q, ticks);
 
   q->summedAverage += q->bufAverage;
 

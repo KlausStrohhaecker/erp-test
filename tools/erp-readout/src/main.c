@@ -141,7 +141,7 @@ static inline int encodeSysex(void const *const pSrc, int len, void *const pDest
   uint8_t *src         = (uint8_t *) pSrc;
   uint8_t *dst         = (uint8_t *) pDest;
   uint8_t  topBitsMask = 0;
-  uint8_t *topBits;
+  uint8_t *topBits     = (uint8_t *) 0;
 
   // write start of sysex
   *(dst++) = 0xF0;
@@ -173,8 +173,8 @@ static inline int encodeSysex(void const *const pSrc, int len, void *const pDest
 static inline void doSend(void)
 {
   int     messageLen;
-  uint8_t dataBuf[PAYLOAD_BUFFER_SIZE];
-  uint8_t sendBuf[RAW_TX_BUFFER_SIZE];
+  uint8_t dataBuf[PAYLOAD_BUFFER_SIZE] __attribute__((aligned(8)));
+  uint8_t sendBuf[RAW_TX_BUFFER_SIZE] __attribute__((aligned(8)));
   int     err, written;
 
   snd_rawmidi_status_t *pStatus;
@@ -322,20 +322,81 @@ static inline BOOL examineContent(void const *const data, unsigned const len)
 {
   static uint64_t time    = 0;
   uint64_t        now     = getTimeUSec();
-  static int      maxTime = 0;
-  static int      minTime = (int) -1;
-  if (time != 0)
+  static double   maxTime = 0.0;
+  static double   minTime = 1.0e9;
+  static double   average;
+  static int      period;
+  static unsigned settling = 10000;
+  static uint64_t bins[9];
+  static uint64_t total;
+  if (!settling)
   {
-    int diff = (int) 30 * (now - time);
+    int diff = (int) (now - time);
     if (diff > maxTime)
       maxTime = diff;
     if (diff < minTime)
       minTime = diff;
-    printf("%8dus  %8dus  %8dus\n\033[1A", maxTime / 30, minTime / 30, (maxTime + minTime) / 60);
+    average = average - (0.00001 * (average - diff));
+
+    do
+    {
+      if (diff < period / 10)
+      {
+        bins[0]++;
+        break;
+      }
+      if (diff < period / 3.16)
+      {
+        bins[1]++;
+        break;
+      }
+      if (diff < period / 1.41)
+      {
+        bins[2]++;
+        break;
+      }
+      if (diff < period / 1.122)
+      {
+        bins[3]++;
+        break;
+      }
+      if (diff <= period * 1.122)
+      {
+        bins[4]++;
+        break;
+      }
+      if (diff <= period * 1.41)
+      {
+        bins[5]++;
+        break;
+      }
+      if (diff <= period * 3.16)
+      {
+        bins[6]++;
+        break;
+      }
+      if (diff <= period * 10)
+      {
+        bins[7]++;
+        break;
+      }
+      bins[8]++;
+    } while (0);
+    total++;
   }
-  if (maxTime)
-    maxTime--;
-  minTime++;
+  if (settling)
+  {
+    settling--;
+    if (settling == 0)
+      period = 500, average = 490;
+  }
+  else
+  {
+    printf("%5.0lfus %5.0lfus %7.2lfus -- ", maxTime, minTime, average);
+    for (int i = 0; i < 9; i++)
+      printf("%8.4lf%c", 100.0 * (double) bins[i] / (double) total, bins[i] ? ' ' : 'z');
+    printf("\n\033[1A");
+  }
   time = now;
 
   if (len != (2 + 128) * 4)
@@ -484,7 +545,7 @@ static inline BOOL parseReceivedByte(uint8_t byte)
 
 static inline void doReceive(void)
 {
-  int            npfds;
+  unsigned       npfds;
   struct pollfd *pfds;
   int            read;
   uint8_t        buf[RAW_RX_BUFFER_SIZE];
