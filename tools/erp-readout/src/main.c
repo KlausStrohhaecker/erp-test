@@ -320,15 +320,21 @@ static inline void doSend(void)
 //
 static inline BOOL examineContent(void const *const data, unsigned const len)
 {
-  static uint64_t time    = 0;
-  uint64_t        now     = getTimeUSec();
-  static double   maxTime = 0.0;
-  static double   minTime = 1.0e9;
-  static double   average;
-  static int      period;
-  static unsigned settling = 10000;
+  static uint64_t time     = 0;
+  uint64_t        now      = getTimeUSec();
+  static double   maxTime  = 0.0;
+  static double   minTime  = 1.0e9;
+  static double   average  = 495.0;
+  static int      period   = 500;
+  static unsigned settling = 1000;
   static uint64_t bins[9];
   static uint64_t total;
+  static uint32_t packetNr;
+  static unsigned packetErrors = 0;
+  static unsigned angleErrors  = 0;
+
+  int32_t const *const pErpData = data;
+
   if (!settling)
   {
     int diff = (int) (now - time);
@@ -388,7 +394,9 @@ static inline BOOL examineContent(void const *const data, unsigned const len)
   {
     settling--;
     if (settling == 0)
-      period = 500, average = 490;
+      packetNr = (uint32_t) pErpData[2];
+    else
+      return TRUE;
   }
   else
   {
@@ -399,18 +407,27 @@ static inline BOOL examineContent(void const *const data, unsigned const len)
   }
   time = now;
 
-  if (len != (2 + 128) * 4)
+  if (len != (128) * 4)
   {
-    error("receive: payload has wrong length %d, expected %d", len, (2 + 128) * 4);
+    error("receive: payload has wrong length %d, expected %d", len, (128) * 4);
     return FALSE;
   }
 
-  int32_t const *const pErpData = data;
+  if ((uint32_t) pErpData[2] != packetNr)
+    while ((uint32_t) pErpData[2] != packetNr)
+    {
+      packetErrors++;
+      packetNr++;
+    }
+  packetNr = (uint32_t) pErpData[2] + 1;
 
-  static int errors;
-  int        angle = pErpData[2];
+  int angle = pErpData[3];
   if (angle == INT_MAX)
-    cursorUp(1), printf(">>>%u<<<\n\n", ++errors);
+  {
+    ++angleErrors;
+    // cursorUp(1);
+    // printf(">>>%u<<<\n\n", ++angleErrors);
+  }
   else
   {
     //printf("%8.2lf\n", (double) angle / ERP_SCALE_FACTOR);
@@ -481,6 +498,8 @@ static inline BOOL examineContent(void const *const data, unsigned const len)
       fflush(stdout);
     }
   }
+  printf("\n%6u %6u \n", packetErrors, angleErrors);
+  cursorUp(2);
 
   return TRUE;
 }
