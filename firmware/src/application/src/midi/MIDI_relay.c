@@ -263,6 +263,7 @@ void SendERP(uint8_t *buff, uint32_t len)
   if (t->state != IDLE)
   {
     SMON_monitorEvent(t->portNo, DROPPED_INCOMING);
+    LED_DBG2 = 1;
     return;
   }
 
