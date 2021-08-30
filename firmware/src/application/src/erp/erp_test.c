@@ -28,15 +28,18 @@ static void process(void)
   for (int i = 0; i < 4; i++)
     erpData[i + 3] = ERP_DecodeWipersToAngle((LPC_ADC0->DR[i] & 0xFFFF) >> 6, (LPC_ADC0->DR[i + 4] & 0xFFFF) >> 6);
 
-  static uint8_t sysexBuffer[sizeof (erpData) * 2];
+  static uint8_t sysexBuffer[sizeof(erpData) * 2];
 
-  uint16_t size = MIDI_encodeRawSysex((uint8_t *) &erpData[0], sizeof(erpData), sysexBuffer);
-  SendERP(sysexBuffer, size);
+  if (ReadyForErpTransfer())
+  {
+    uint16_t size = MIDI_encodeRawSysex((uint8_t *) &erpData[0], sizeof(erpData), sysexBuffer);
+    SendERP(sysexBuffer, size);
+  }
 }
 
 void ERP_Process(void)
 {
-  static unsigned timeSlice = 24000;  // startup delay of 3 seconds
+  static unsigned timeSlice = 48000;  // startup delay of 6 seconds
   if (!--timeSlice)
   {
     timeSlice = 4;

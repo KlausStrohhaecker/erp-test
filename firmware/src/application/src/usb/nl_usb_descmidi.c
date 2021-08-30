@@ -292,7 +292,7 @@ const uint8_t USB0_MIDI_StringDescriptor[] = {
 #if PRODUCT_ID_HS == PRODUCT_ID_FS
   (15 * 2 + 2),               /* ???? bLength ( 22 Char + Type + length) */
   USB_STRING_DESCRIPTOR_TYPE, /* bDescriptorType */
-  'N', 0, 'L', 0, 'L', 0, '-', 0, 'E', 0, 'R', 0, 'P', 0, '-', 0, '-', 0, 'T', 0, 'e', 0, 's', 0, 't', 0, '-', 0, '-', 0,
+  'E', 0, 'R', 0, 'P', 0, '-', 0, 'M', 0, 'I', 0, 'D', 0, 'I', 0, '-', 0, 'B', 0, 'r', 0, 'i', 0, 'd', 0, 'g', 0, 'e', 0,
   0, 0
 #else
   (14 * 2 + 2),               /* ???? bLength ( 22 Char + Type + length) */
@@ -318,7 +318,7 @@ const uint8_t USB1_MIDI_StringDescriptor[] = {
 #if PRODUCT_ID_HS == PRODUCT_ID_FS
   (15 * 2 + 2),               /* ???? bLength ( 22 Char + Type + length) */
   USB_STRING_DESCRIPTOR_TYPE, /* bDescriptorType */
-  'N', 0, 'L', 0, 'L', 0, '-', 0, 'E', 0, 'R', 0, 'P', 0, '-', 0, '-', 0, 'T', 0, 'e', 0, 's', 0, 't', 0, '-', 0, '-', 0,
+  'E', 0, 'R', 0, 'P', 0, '-', 0, 'M', 0, 'I', 0, 'D', 0, 'I', 0, '-', 0, 'B', 0, 'r', 0, 'i', 0, 'd', 0, 'g', 0, 'e', 0,
   0, 0
 #else
   (14 * 2 + 2),               /* ???? bLength ( 22 Char + Type + length) */

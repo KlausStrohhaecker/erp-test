@@ -226,6 +226,7 @@ void     USB_Core_DeInit(uint8_t const port);
 void     USB_Core_ForceFullSpeed(uint8_t const port);
 void     USB_Core_Endpoint_Callback_Set(uint8_t const port, uint8_t const ep, EndpointCallback const cb);
 uint8_t  USB_Core_IsConfigured(uint8_t const port);
+uint8_t  USB_Core_ConfigStatus(uint8_t const port);
 uint8_t  USB_Core_ReadyToWrite(uint8_t const port, uint8_t const epnum);
 void     USB_ResetCore(uint8_t const port);
 uint32_t USB_ReqGetStatus(uint8_t const port);

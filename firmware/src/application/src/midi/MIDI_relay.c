@@ -9,8 +9,14 @@
 #include "devctl/devctl.h"
 #include "midi/nl_devctl_defs.h"
 
-#define PACKET_TIMEOUT       (8000ul)  // in 125us units, 8000 *0.125ms = 1000ms  until a first packet is aborted
-#define PACKET_TIMEOUT_SHORT (800ul)   // in 125us units, 800  *0.125ms = 100ms   until the next packet is aborted
+#define usToTicks(x) ((x + 75ul) / 125ul)     // usecs to 125 ticker counts
+#define msToTicks(x) (((x) *1000ul) / 125ul)  // msecs to 125 ticker counts
+
+//timeout in usecs until a first packet is aborted
+#define PACKET_TIMEOUT msToTicks(100)
+
+// timeout in usecs until the next packet is aborted
+#define PACKET_TIMEOUT_SHORT msToTicks(5)
 
 typedef enum
 {
@@ -43,7 +49,7 @@ typedef struct PacketTransfer PacketTransfer_t;
 
 static PacketTransfer_t packetTransfer[2] =  // port number is referring to incoming packet !
     {
-      { .first = 1, .portNo = 0, .outgoingPortNo = 0, .outgoingTransfer = &packetTransfer[0] },  // !!!! patched
+      { .first = 1, .portNo = 0, .outgoingPortNo = 1, .outgoingTransfer = &packetTransfer[1] },
       { .first = 1, .portNo = 1, .outgoingPortNo = 0, .outgoingTransfer = &packetTransfer[0] },
     };
 
@@ -247,19 +253,33 @@ static void Receive_IRQ_FirstCallback(uint8_t const port, uint8_t *buff, uint32_
 void MIDI_Relay_Init(void)
 {
   packetTransferReset(&packetTransfer[0]);
-  // packetTransferReset(&packetTransfer[1]);
+  packetTransferReset(&packetTransfer[1]);
   USB_MIDI_Config(0, Receive_IRQ_FirstCallback);
-  // USB_MIDI_Config(1, Receive_IRQ_FirstCallback);
+  USB_MIDI_Config(1, Receive_IRQ_FirstCallback);
   USB_MIDI_Init(0);
-  // USB_MIDI_Init(1);
+  USB_MIDI_Init(1);
+}
+
+int ReadyForErpTransfer(void)
+{
+  OP = &packetTransfer[1];
+
+  if (!t->outgoingTransfer->online)
+    return 1;
+  if (t->state != IDLE)
+  {
+    SMON_monitorEvent(t->portNo, DROPPED_INCOMING);
+    LED_DBG2 = 1;
+    return 0;
+  }
 }
 
 void SendERP(uint8_t *buff, uint32_t len)
 {
-  OP = &packetTransfer[0];
+  OP = &packetTransfer[1];
 
   if (!t->outgoingTransfer->online)
-	return;
+    return;
   if (t->state != IDLE)
   {
     SMON_monitorEvent(t->portNo, DROPPED_INCOMING);

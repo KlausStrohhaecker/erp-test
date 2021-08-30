@@ -85,7 +85,7 @@ typedef struct
   uint8_t const *       HSOtherSpeedConfiguration;
   uint8_t               activity;
   uint8_t               error;
-  uint8_t               gotConfigDescriptorRequest;
+  uint8_t               gotConfigDescriptorRequest;  // NOT RELIABLE, do not use !!
   uint8_t               connectionEstablished;
 } usb_core_t;
 
@@ -371,8 +371,16 @@ uint8_t USB_Core_IsConfigured(uint8_t const port)
 {
   return (usb[port].hardware->PORTSC1_D & (1 << 0))
       && usb[port].Configuration
-      && usb[port].gotConfigDescriptorRequest
+      // && usb[port].gotConfigDescriptorRequest  // unreliable
       && usb[port].connectionEstablished;
+}
+
+uint8_t USB_Core_ConfigStatus(uint8_t const port)
+{
+  return ((usb[port].hardware->PORTSC1_D & 1) << 0)
+      | ((usb[port].Configuration != 0) << 1)
+      // | ((usb[port].gotConfigDescriptorRequest != 0) << 2)  // unreliable
+      | ((usb[port].connectionEstablished != 0) << 2);
 }
 
 /******************************************************************************/

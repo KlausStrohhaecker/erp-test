@@ -5,7 +5,12 @@
 #pragma once
 
 // version history :
-//  1.01 : initial (with separate USB IDs/names for HS and FS port)
+//  1.02 : initial (with separate USB IDs/names for HS and FS port)
+//  1.03 : unified USB IDs/names for HS and FS port for production version
+//  1.04 : bugfix : suspend/standby recovery
+//  1.05 : added LED test sysex command
+//  1.06 : added: Reset after successful flashing, detach all USB before flashing, auto-detect board type
+//  2.01 : use assigned ID's for USB and MIDI SysEx, shorter time-outs until stalling packets are dropped
 
 // clang-format off
 // just set up the X.YZ style of version number vertically in below

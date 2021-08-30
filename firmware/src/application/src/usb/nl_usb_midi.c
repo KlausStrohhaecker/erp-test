@@ -143,6 +143,11 @@ uint32_t USB_MIDI_IsConfigured(uint8_t const port)
   return USB_Core_IsConfigured(port);
 }
 
+uint32_t USB_MIDI_ConfigStatus(uint8_t const port)
+{
+  return USB_Core_ConfigStatus(port);
+}
+
 /******************************************************************************/
 /** @brief		Send MIDI buffer
     @param[in]	buff	Pointer to data buffer
