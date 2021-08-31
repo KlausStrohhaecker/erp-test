@@ -1,6 +1,5 @@
 #include "erp/ERP.h"
 #include "cmsis/LPC43xx.h"
-#include "midi/nl_sysex.h"
 #include "midi/MIDI_relay.h"
 
 void ERP_Init(void)
@@ -21,20 +20,16 @@ void ERP_Init(void)
 
 static void process(void)
 {
-  static int32_t erpData[128] = { 2000, ERP_SCALE_FACTOR, 0 };  // sample rate, scale factor, 32x ERP angle value
+  static int32_t erpData[35] = { 2000, ERP_SCALE_FACTOR, 0 };  // sample rate, scale factor, packet-number, 32 values
 
-  erpData[2]++;
+  erpData[2]++;  // packet number
 
-  for (int i = 0; i < 4; i++)
+  for (int i = 0; i < 1; i++)
     erpData[i + 3] = ERP_DecodeWipersToAngle((LPC_ADC0->DR[i] & 0xFFFF) >> 6, (LPC_ADC0->DR[i + 4] & 0xFFFF) >> 6);
 
   static uint8_t sysexBuffer[sizeof(erpData) * 2];
 
-  if (ReadyForErpTransfer())
-  {
-    uint16_t size = MIDI_encodeRawSysex((uint8_t *) &erpData[0], sizeof(erpData), sysexBuffer);
-    SendERP(sysexBuffer, size);
-  }
+  SendERP(erpData, sizeof(erpData), sysexBuffer);
 }
 
 void ERP_Process(void)

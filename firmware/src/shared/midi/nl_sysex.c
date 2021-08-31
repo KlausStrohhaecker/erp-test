@@ -123,15 +123,16 @@ uint16_t MIDI_decodeRawSysex(uint8_t const* const src, uint32_t const len, uint8
 }
 
 // return number of bytes of raw encoding
-uint16_t MIDI_encodeRawSysex(uint8_t const* src, uint32_t len, uint8_t* const dest)
+uint16_t MIDI_encodeRawSysex(uint8_t const* src, uint32_t len, uint8_t* const dest, uint8_t const cableNr)
 {
   uint8_t* packet = (uint8_t*) dest;
   uint8_t  packetPayloadIndex;
   uint8_t  topBitsMask = 0;
   uint8_t* topBits     = NULL;
+  uint8_t  cnr         = (cableNr & 0x0F) << 4;
 
   // write start of sysex
-  packet[0]          = 0x04;
+  packet[0]          = cnr | 0x04;
   packet[1]          = 0xF0;
   packetPayloadIndex = 2;
 
@@ -155,7 +156,7 @@ uint16_t MIDI_encodeRawSysex(uint8_t const* src, uint32_t len, uint8_t* const de
 
     if (packetPayloadIndex == 4)  // packet full
     {
-      packet[0]          = 0x04;
+      packet[0]          = cnr | 0x04;
       packetPayloadIndex = 1;
       packet += 4;
     }
@@ -166,15 +167,15 @@ uint16_t MIDI_encodeRawSysex(uint8_t const* src, uint32_t len, uint8_t* const de
   switch (packetPayloadIndex - 1)
   {
     case 1:
-      packet[0] = 0x05;
+      packet[0] = cnr | 0x05;
       packet[2] = packet[3] = 0;
       break;
     case 2:
-      packet[0] = 0x06;
+      packet[0] = cnr | 0x06;
       packet[3] = 0;
       break;
     case 3:
-      packet[0] = 0x07;
+      packet[0] = cnr | 0x07;
       break;
   }
 
