@@ -8,6 +8,7 @@
 #include "midi/MIDI_statemonitor.h"
 #include "devctl/devctl.h"
 #include "midi/nl_devctl_defs.h"
+#include "midi/nl_sysex.h"
 
 #define usToTicks(x) ((x + 75ul) / 125ul)     // usecs to 125 ticker counts
 #define msToTicks(x) (((x) *1000ul) / 125ul)  // msecs to 125 ticker counts
@@ -38,8 +39,8 @@ struct PacketTransfer
   int                          first;
 
   PacketState_t state;
-  uint8_t *     pData;
-  int32_t       len;
+  uint8_t *     pData[2];
+  int32_t       len[2];
   uint64_t      packetTimeout;
   uint64_t      packetTime;
   int           dropped;
@@ -63,10 +64,10 @@ static inline void packetTransferReset(OP)
   USB_MIDI_SuspendReceive(t->portNo, 0);  // keep receiver enabled
   USB_MIDI_ClearReceive(t->portNo);
 
-  t->pData         = NULL;
-  t->len           = 0;
-  t->dropped       = 0;
-  t->packetTimeout = PACKET_TIMEOUT;
+  t->pData[0] = t->pData[1] = NULL;
+  t->len[0] = t->len[1] = 0;
+  t->dropped            = 0;
+  t->packetTimeout      = PACKET_TIMEOUT;
 }
 
 static inline void processTransfers(OP)
@@ -93,7 +94,7 @@ static inline void processTransfers(OP)
       // fall-through is on purpose
 
     case WAIT_FOR_XMIT_READY:
-      if (USB_MIDI_Send(t->outgoingPortNo, t->pData, t->len) < 0)
+      if (USB_MIDI_Send(t->outgoingPortNo, t->pData[0], t->len[0]) < 0)
         break;  /// could not start transfer now, try later
       t->state = WAIT_FOR_XMIT_DONE;
       break;
@@ -101,7 +102,21 @@ static inline void processTransfers(OP)
     case WAIT_FOR_XMIT_DONE:
       if (USB_MIDI_BytesToSend(t->outgoingPortNo) > 0)
         break;  // still sending...
-      t->state = IDLE;
+      __disable_irq();
+      t->pData[0] = t->pData[1];
+      t->len[0]   = t->len[1];
+      if (t->pData[1])
+      {
+        t->pData[1] = 0;
+        t->len[1]   = 0;
+        t->state    = RECEIVED;
+        __enable_irq();
+        break;
+      }
+      t->pData[1] = 0;
+      t->len[1]   = 0;
+      t->state    = IDLE;
+      __enable_irq();
       USB_MIDI_SuspendReceive(t->portNo, 0);  // re-enable receiver
       USB_MIDI_primeReceive(t->portNo);
       SMON_monitorEvent(t->portNo, PACKET_DELIVERED);
@@ -198,15 +213,21 @@ static inline void onReceive(OP, uint8_t *buff, uint32_t len)
     return;
   }
 
-  if (t->state != IDLE)  // we should never receive a packet when not IDLE
-    DisplayErrorAndHalt(E_USB_UNEXPECTED_PACKET);
+  if ((t->state == IDLE) || (t->pData[1] == 0))
+  {
+    // setup packet transfer data ...
+	unsigned idx  = (t->pData[1] != 0);
+    t->pData[idx] = buff;
+    t->len[idx]   = len;
+    if (idx == 0)
+      t->state    = RECEIVED;
+    // ... and block receiver until transmit finished/failed
+    USB_MIDI_SuspendReceive(t->portNo, 1);
+    return;
+  }
 
-  // setup packet transfer data ...
-  t->pData = buff;
-  t->len   = len;
-  t->state = RECEIVED;
-  // ... and block receiver until transmit finished/failed
-  USB_MIDI_SuspendReceive(t->portNo, 1);
+  // we should never receive a packet when not IDLE
+  DisplayErrorAndHalt(E_USB_UNEXPECTED_PACKET);
 }
 
 static void Receive_IRQ_Callback_0(uint8_t const port, uint8_t *buff, uint32_t len)
@@ -260,34 +281,27 @@ void MIDI_Relay_Init(void)
   USB_MIDI_Init(1);
 }
 
-int ReadyForErpTransfer(void)
-{
-  OP = &packetTransfer[1];
-
-  if (!t->outgoingTransfer->online)
-    return 1;
-  if (t->state != IDLE)
-  {
-    SMON_monitorEvent(t->portNo, DROPPED_INCOMING);
-    LED_DBG2 = 1;
-    return 0;
-  }
-}
-
-void SendERP(uint8_t *buff, uint32_t len)
+void SendERP(void *buff, uint32_t len, void *sysexBuff)
 {
   OP = &packetTransfer[1];
 
   if (!t->outgoingTransfer->online)
     return;
-  if (t->state != IDLE)
+  __disable_irq();
+  if ((t->state == IDLE) || ((t->pData[1] == 0) && (t->pData[0] != sysexBuff)))
   {
-    SMON_monitorEvent(t->portNo, DROPPED_INCOMING);
-    LED_DBG2 = 1;
+    uint16_t size = MIDI_encodeRawSysex((uint8_t *) buff, len, sysexBuff, 1);
+    unsigned idx  = (t->pData[1] != 0);
+    t->pData[idx] = sysexBuff;
+    t->len[idx]   = size;
+    if (idx == 0)
+      t->state      = RECEIVED;
+    __enable_irq();
     return;
   }
 
-  t->pData = buff;
-  t->len   = len;
-  t->state = RECEIVED;
+  SMON_monitorEvent(t->portNo, DROPPED_INCOMING);
+  LED_DBG2 = 1;
+  __enable_irq();
+  return;
 }

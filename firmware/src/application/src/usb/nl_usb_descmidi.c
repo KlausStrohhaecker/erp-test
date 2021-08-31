@@ -46,119 +46,7 @@ const uint8_t USB1_MIDI_DeviceDescriptor[] = {
   0x01,                       /* bNumConfigurations */
 };
 
-/** USB FSConfiguration Descriptor */
-/*   All Descriptors (Configuration, Interface, Endpoint, Class */
-const uint8_t USB_MIDI_FSConfigDescriptor[] = {
-  /** Configuration 1 */
-  USB_CONFIGURATION_DESC_SIZE,       /* bLength */
-  USB_CONFIGURATION_DESCRIPTOR_TYPE, /* bDescriptorType */
-  WBVAL(CONFIG_BLOCK_SIZE),
-  0x02,                     /* bNumInterfaces */
-  0x01,                     /* bConfigurationValue: 0x01 is used to select this configuration */
-  0x00,                     /* iConfiguration: no string to describe this configuration */
-  USB_CONFIG_BUS_POWERED,   /* bmAttributes */
-  USB_CONFIG_POWER_MA(200), /* bMaxPower, device power consumption is 200 mA */
-                            /** Interface 0: Standard Audio Control interface */
-  USB_INTERFACE_DESC_SIZE,
-  USB_INTERFACE_DESCRIPTOR_TYPE,
-  0x00,                       /* bInterfaceNumber: 0 */
-  0x00,                       /* bAlternateSetting */
-  0x00,                       /* bNumEndPoints: no endpoints */
-  USB_DEVICE_CLASS_AUDIO,     /* bInterfaceClass: Audio */
-  USB_SUBCLASS_AUDIO_CONTROL, /* bInterfaceSubClass: AudioControl */
-  0x00,                       /* bInterfaceProtocol: no protocol */
-  0x00,                       /* iInterface: no string desc */
-                              /** CS Interface descriptor - Audio Control */
-  USB_CS_AUDIO_CONTROL_SIZE,
-  USB_CS_INTERFACE_DESC_TYPE,
-  USB_MIDI_HEADER_SUBTYPE,
-  WBVAL(BCDADC_1_0),
-  WBVAL(USB_CS_AUDIO_CONTROL_TOTAL),
-  0x01,
-  0x01,
-  /** Interface 1: standard midistreaming interface descriptor */
-  USB_INTERFACE_DESC_SIZE,
-  USB_INTERFACE_DESCRIPTOR_TYPE,
-  0x01,                        /* bInterfaceNumber: 1 */
-  0x00,                        /* bAlternateSetting */
-  0x02,                        /* bNumEndPoints: 2 */
-  USB_DEVICE_CLASS_AUDIO,      /* bInterfaceClass: Audio */
-  USB_SUBCLASS_MIDI_STREAMING, /* bInterfaceSubclass: MIDI Streaming */
-  0x00,                        /* bInterfaceProtocol: no protocol */
-  0x00,                        /* iInterface: no string desc */
-                               /** CS Interface descriptor - MIDI Streaming */
-  USB_CS_MIDI_STREAMING_SIZE,
-  USB_CS_INTERFACE_DESC_TYPE,
-  USB_MIDI_HEADER_SUBTYPE,
-  WBVAL(BCDADC_1_0),
-  WBVAL(USB_CS_MIDI_STREAMING_TOTAL),
-  /** MIDI IN jack - embedded */
-  USB_MIDI_IN_JACK_SIZE,
-  USB_CS_INTERFACE_DESC_TYPE,
-  USB_MIDI_IN_JACK_SUBTYPE,
-  USB_MIDI_JACK_EMBEDDED,
-  0x01,
-  0x00,
-  /** MIDI IN jack - external */
-  USB_MIDI_IN_JACK_SIZE,
-  USB_CS_INTERFACE_DESC_TYPE,
-  USB_MIDI_IN_JACK_SUBTYPE,
-  USB_MIDI_JACK_EXTERNAL,
-  0x02,
-  0x00,
-  /** MIDI OUT jack - embedded */
-  USB_MIDI_OUT_JACK_SIZE,
-  USB_CS_INTERFACE_DESC_TYPE,
-  USB_MIDI_OUT_JACK_SUBTYPE,
-  USB_MIDI_JACK_EMBEDDED,
-  0x03,
-  0x01,
-  0x02,
-  0x01,
-  0x00,
-  /** MIDI OUT jack - external */
-  USB_MIDI_OUT_JACK_SIZE,
-  USB_CS_INTERFACE_DESC_TYPE,
-  USB_MIDI_OUT_JACK_SUBTYPE,
-  USB_MIDI_JACK_EXTERNAL,
-  0x04,
-  0x01,
-  0x01,
-  0x01,
-  0x00,
-  /** Bulk OUT - standard endpoint descriptor */
-  USB_AUDIO_ENDPOINT_DESC_SIZE,
-  USB_ENDPOINT_DESCRIPTOR_TYPE,
-  USB_ENDPOINT_OUT(MIDI_EP_OUT),
-  USB_ENDPOINT_TYPE_BULK,
-  WBVAL(USB_FS_BULK_SIZE),
-  0x00,
-  0x00,
-  0x00,
-  /** Bulk OUT - class-specific endpoint descriptor */
-  USB_MIDI_ENDPOINT_DESC_SIZE,
-  USB_CS_ENDPOINT_DESC_TYPE,
-  USB_MIDI_EP_GENERAL_SUBTYPE,
-  0x01,
-  0x01,
-  /** BULK IN - standard endpoint descriptor */
-  USB_AUDIO_ENDPOINT_DESC_SIZE,
-  USB_ENDPOINT_DESCRIPTOR_TYPE,
-  USB_ENDPOINT_IN(MIDI_EP_IN),
-  USB_ENDPOINT_TYPE_BULK,
-  WBVAL(USB_FS_BULK_SIZE),
-  0x00,
-  0x00,
-  0x00,
-  /** Bulk IN - class-specific endpoint descriptor */
-  USB_MIDI_ENDPOINT_DESC_SIZE,
-  USB_CS_ENDPOINT_DESC_TYPE,
-  USB_MIDI_EP_GENERAL_SUBTYPE,
-  0x01,
-  0x03,
-  /* Terminator */
-  0
-};
+// see https://www.microchip.com/forums/m493322.aspx#493408  on patching the virtual cables
 
 /* USB HSConfiguration Descriptor */
 /*   All Descriptors (Configuration, Interface, Endpoint, Class, Vendor */
@@ -166,13 +54,14 @@ const uint8_t USB_MIDI_HSConfigDescriptor[] = {
   /** Configuration 1 */
   USB_CONFIGURATION_DESC_SIZE,       /* bLength */
   USB_CONFIGURATION_DESCRIPTOR_TYPE, /* bDescriptorType */
-  WBVAL(CONFIG_BLOCK_SIZE),
+  WBVAL(9 + 9 + 9 + 9 + 7 + 30 + 30 + 30),
   0x02,                     /* bNumInterfaces */
   0x01,                     /* bConfigurationValue: 0x01 is used to select this configuration */
   0x00,                     /* iConfiguration: no string to describe this configuration */
   USB_CONFIG_BUS_POWERED,   /* bmAttributes */
   USB_CONFIG_POWER_MA(200), /* bMaxPower, device power consumption is 200 mA */
-                            /** Interface 0: Standard Audio Control interface */
+
+  /** Interface 0: Standard Audio Control interface */
   USB_INTERFACE_DESC_SIZE,
   USB_INTERFACE_DESCRIPTOR_TYPE,
   0x00,                       /* bInterfaceNumber: 0 */
@@ -182,7 +71,8 @@ const uint8_t USB_MIDI_HSConfigDescriptor[] = {
   USB_SUBCLASS_AUDIO_CONTROL, /* bInterfaceSubClass: AudioControl */
   0x00,                       /* bInterfaceProtocol: no protocol */
   0x00,                       /* iInterface: no string desc */
-                              /** CS Interface descriptor - Audio Control */
+
+  /** CS Interface descriptor - Audio Control */
   USB_CS_AUDIO_CONTROL_SIZE,
   USB_CS_INTERFACE_DESC_TYPE,
   USB_MIDI_HEADER_SUBTYPE,
@@ -190,6 +80,7 @@ const uint8_t USB_MIDI_HSConfigDescriptor[] = {
   WBVAL(USB_CS_AUDIO_CONTROL_TOTAL),
   0x01,
   0x01,
+
   /** Interface 1: standard midistreaming interface descriptor */
   USB_INTERFACE_DESC_SIZE,
   USB_INTERFACE_DESCRIPTOR_TYPE,
@@ -200,46 +91,98 @@ const uint8_t USB_MIDI_HSConfigDescriptor[] = {
   USB_SUBCLASS_MIDI_STREAMING, /* bInterfaceSubclass: MIDI Streaming */
   0x00,                        /* bInterfaceProtocol: no protocol */
   0x00,                        /* iInterface: no string desc */
-                               /** CS Interface descriptor - MIDI Streaming */
+
+  /** CS Interface descriptor - MIDI Streaming */
   USB_CS_MIDI_STREAMING_SIZE,
   USB_CS_INTERFACE_DESC_TYPE,
   USB_MIDI_HEADER_SUBTYPE,
   WBVAL(BCDADC_1_0),
-  WBVAL(USB_CS_MIDI_STREAMING_TOTAL),
-  /** MIDI IN jack - embedded */
-  USB_MIDI_IN_JACK_SIZE,
-  USB_CS_INTERFACE_DESC_TYPE,
-  USB_MIDI_IN_JACK_SUBTYPE,
-  USB_MIDI_JACK_EMBEDDED,
-  0x01,
-  0x00,
-  /** MIDI IN jack - external */
-  USB_MIDI_IN_JACK_SIZE,
-  USB_CS_INTERFACE_DESC_TYPE,
-  USB_MIDI_IN_JACK_SUBTYPE,
-  USB_MIDI_JACK_EXTERNAL,
-  0x02,
-  0x00,
-  /** MIDI OUT jack - embedded */
+  WBVAL(7 + (9 + 6) * 2 + (9 + 6) * 2 + (9 + 6) * 2),
+
+  //
+  // Patch Board
+  //
+
+  // Outputs
+
+  // --- Ext OUT Jack 01 -- Emb IN Jack 02 ---
+  /** 01 MIDI OUT jack - external */
   USB_MIDI_OUT_JACK_SIZE,
   USB_CS_INTERFACE_DESC_TYPE,
   USB_MIDI_OUT_JACK_SUBTYPE,
+  USB_MIDI_JACK_EXTERNAL,
+  0x01,
+  0x01,
+  0x02,
+  0x01,
+  0x00,
+  /** 02 MIDI IN jack - embedded */
+  USB_MIDI_IN_JACK_SIZE,
+  USB_CS_INTERFACE_DESC_TYPE,
+  USB_MIDI_IN_JACK_SUBTYPE,
   USB_MIDI_JACK_EMBEDDED,
+  0x02,
+  0x00,
+
+  // --- Ext OUT Jack 03 -- Emb IN Jack 04 ---
+  /** 03 MIDI OUT jack - external */
+  USB_MIDI_OUT_JACK_SIZE,
+  USB_CS_INTERFACE_DESC_TYPE,
+  USB_MIDI_OUT_JACK_SUBTYPE,
+  USB_MIDI_JACK_EXTERNAL,
   0x03,
   0x01,
-  0x02,
+  0x04,
   0x01,
   0x00,
-  /** MIDI OUT jack - external */
+  /** 04 MIDI IN jack - embedded */
+  USB_MIDI_IN_JACK_SIZE,
+  USB_CS_INTERFACE_DESC_TYPE,
+  USB_MIDI_IN_JACK_SUBTYPE,
+  USB_MIDI_JACK_EMBEDDED,
+  0x04,
+  0x00,
+
+  // Inputs
+
+  // --- Ext IN Jack 11 -- Emb OUT Jack 12 ---
+  /** 11 MIDI IN jack - external */
+  USB_MIDI_IN_JACK_SIZE,
+  USB_CS_INTERFACE_DESC_TYPE,
+  USB_MIDI_IN_JACK_SUBTYPE,
+  USB_MIDI_JACK_EXTERNAL,
+  0x11,
+  0x00,
+  /** 12 MIDI OUT jack - embedded */
   USB_MIDI_OUT_JACK_SIZE,
   USB_CS_INTERFACE_DESC_TYPE,
   USB_MIDI_OUT_JACK_SUBTYPE,
-  USB_MIDI_JACK_EXTERNAL,
-  0x04,
+  USB_MIDI_JACK_EMBEDDED,
+  0x12,
   0x01,
-  0x01,
+  0x11,
   0x01,
   0x00,
+
+  // --- Ext IN Jack 13 -- Emb OUT Jack 14 ---
+  /** 11 MIDI IN jack - external */
+  USB_MIDI_IN_JACK_SIZE,
+  USB_CS_INTERFACE_DESC_TYPE,
+  USB_MIDI_IN_JACK_SUBTYPE,
+  USB_MIDI_JACK_EXTERNAL,
+  0x13,
+  0x00,
+  /** 12 MIDI OUT jack - embedded */
+  USB_MIDI_OUT_JACK_SIZE,
+  USB_CS_INTERFACE_DESC_TYPE,
+  USB_MIDI_OUT_JACK_SUBTYPE,
+  USB_MIDI_JACK_EMBEDDED,
+  0x14,
+  0x01,
+  0x13,
+  0x01,
+  0x00,
+
   /** Bulk OUT - standard endpoint descriptor */
   USB_AUDIO_ENDPOINT_DESC_SIZE,
   USB_ENDPOINT_DESCRIPTOR_TYPE,
@@ -249,12 +192,18 @@ const uint8_t USB_MIDI_HSConfigDescriptor[] = {
   0x00,
   0x00,
   0x00,
+
+  // Emb IN Jack 0x02  ----+
+  //                       +----- bulk OUT endpoint
+  // Emb IN Jack 0x04  ----+
   /** Bulk OUT - class-specific endpoint descriptor */
-  USB_MIDI_ENDPOINT_DESC_SIZE,
+  6,
   USB_CS_ENDPOINT_DESC_TYPE,
   USB_MIDI_EP_GENERAL_SUBTYPE,
-  0x01,
-  0x01,
+  0x02,
+  0x02,
+  0x04,
+
   /** BULK IN - standard endpoint descriptor */
   USB_AUDIO_ENDPOINT_DESC_SIZE,
   USB_ENDPOINT_DESCRIPTOR_TYPE,
@@ -264,15 +213,169 @@ const uint8_t USB_MIDI_HSConfigDescriptor[] = {
   0x00,
   0x00,
   0x00,
+
+  // Emb OUT Jack 0x12  ----+
+  //                        +----- bulk IN endpoint
+  // Emb OUT Jack 0x14  ----+
   /** Bulk IN - class-specific endpoint descriptor */
-  USB_MIDI_ENDPOINT_DESC_SIZE,
+  6,
   USB_CS_ENDPOINT_DESC_TYPE,
   USB_MIDI_EP_GENERAL_SUBTYPE,
-  0x01,
-  0x03,
+  0x02,
+  0x12,
+  0x14,
+
   /* Terminator */
   0
 };
+
+//
+//-------------------------------------------------------------------------
+//
+
+/* USB FSConfiguration Descriptor */
+/*   All Descriptors (Configuration, Interface, Endpoint, Class, Vendor */
+const uint8_t USB_MIDI_FSConfigDescriptor[] = {
+  /** Configuration 1 */
+  USB_CONFIGURATION_DESC_SIZE,       /* bLength */
+  USB_CONFIGURATION_DESCRIPTOR_TYPE, /* bDescriptorType */
+  WBVAL(9 + 9 + 9 + 9 + 7 + 30 + 28),
+  0x02,                     /* bNumInterfaces */
+  0x01,                     /* bConfigurationValue: 0x01 is used to select this configuration */
+  0x00,                     /* iConfiguration: no string to describe this configuration */
+  USB_CONFIG_BUS_POWERED,   /* bmAttributes */
+  USB_CONFIG_POWER_MA(200), /* bMaxPower, device power consumption is 200 mA */
+
+  /** Interface 0: Standard Audio Control interface */
+  USB_INTERFACE_DESC_SIZE,
+  USB_INTERFACE_DESCRIPTOR_TYPE,
+  0x00,                       /* bInterfaceNumber: 0 */
+  0x00,                       /* bAlternateSetting */
+  0x00,                       /* bNumEndPoints: no endpoints */
+  USB_DEVICE_CLASS_AUDIO,     /* bInterfaceClass: Audio */
+  USB_SUBCLASS_AUDIO_CONTROL, /* bInterfaceSubClass: AudioControl */
+  0x00,                       /* bInterfaceProtocol: no protocol */
+  0x00,                       /* iInterface: no string desc */
+
+  /** CS Interface descriptor - Audio Control */
+  USB_CS_AUDIO_CONTROL_SIZE,
+  USB_CS_INTERFACE_DESC_TYPE,
+  USB_MIDI_HEADER_SUBTYPE,
+  WBVAL(BCDADC_1_0),
+  WBVAL(USB_CS_AUDIO_CONTROL_TOTAL),
+  0x01,
+  0x01,
+
+  /** Interface 1: standard midistreaming interface descriptor */
+  USB_INTERFACE_DESC_SIZE,
+  USB_INTERFACE_DESCRIPTOR_TYPE,
+  0x01,                        /* bInterfaceNumber: 1 */
+  0x00,                        /* bAlternateSetting */
+  0x02,                        /* bNumEndPoints: 2 */
+  USB_DEVICE_CLASS_AUDIO,      /* bInterfaceClass: Audio */
+  USB_SUBCLASS_MIDI_STREAMING, /* bInterfaceSubclass: MIDI Streaming */
+  0x00,                        /* bInterfaceProtocol: no protocol */
+  0x00,                        /* iInterface: no string desc */
+
+  /** CS Interface descriptor - MIDI Streaming */
+  USB_CS_MIDI_STREAMING_SIZE,
+  USB_CS_INTERFACE_DESC_TYPE,
+  USB_MIDI_HEADER_SUBTYPE,
+  WBVAL(BCDADC_1_0),
+  WBVAL(7 + (9 + 6) * 2 + (9 + 5) * 2),
+
+  //
+  // Patch Board
+  //
+
+  // Outputs
+
+  // --- Ext OUT Jack 01 -- Emb IN Jack 02 ---
+  /** 01 MIDI OUT jack - external */
+  USB_MIDI_OUT_JACK_SIZE,
+  USB_CS_INTERFACE_DESC_TYPE,
+  USB_MIDI_OUT_JACK_SUBTYPE,
+  USB_MIDI_JACK_EXTERNAL,
+  0x01,
+  0x01,
+  0x02,
+  0x01,
+  0x00,
+  /** 02 MIDI IN jack - embedded */
+  USB_MIDI_IN_JACK_SIZE,
+  USB_CS_INTERFACE_DESC_TYPE,
+  USB_MIDI_IN_JACK_SUBTYPE,
+  USB_MIDI_JACK_EMBEDDED,
+  0x02,
+  0x00,
+
+  // Inputs
+
+  // --- Ext IN Jack 11 -- Emb OUT Jack 12 ---
+  /** 11 MIDI IN jack - external */
+  USB_MIDI_IN_JACK_SIZE,
+  USB_CS_INTERFACE_DESC_TYPE,
+  USB_MIDI_IN_JACK_SUBTYPE,
+  USB_MIDI_JACK_EXTERNAL,
+  0x11,
+  0x00,
+  /** 12 MIDI OUT jack - embedded */
+  USB_MIDI_OUT_JACK_SIZE,
+  USB_CS_INTERFACE_DESC_TYPE,
+  USB_MIDI_OUT_JACK_SUBTYPE,
+  USB_MIDI_JACK_EMBEDDED,
+  0x12,
+  0x01,
+  0x11,
+  0x01,
+  0x00,
+
+  /** Bulk OUT - standard endpoint descriptor */
+  USB_AUDIO_ENDPOINT_DESC_SIZE,
+  USB_ENDPOINT_DESCRIPTOR_TYPE,
+  USB_ENDPOINT_OUT(MIDI_EP_OUT),
+  USB_ENDPOINT_TYPE_BULK,
+  WBVAL(USB_FS_BULK_SIZE),
+  0x00,
+  0x00,
+  0x00,
+
+  // Emb IN Jack 0x02  ----+
+  //                       +----- bulk OUT endpoint
+  // Emb IN Jack 0x04  ----+
+  /** Bulk OUT - class-specific endpoint descriptor */
+  5,
+  USB_CS_ENDPOINT_DESC_TYPE,
+  USB_MIDI_EP_GENERAL_SUBTYPE,
+  0x01,
+  0x02,
+
+  /** BULK IN - standard endpoint descriptor */
+  USB_AUDIO_ENDPOINT_DESC_SIZE,
+  USB_ENDPOINT_DESCRIPTOR_TYPE,
+  USB_ENDPOINT_IN(MIDI_EP_IN),
+  USB_ENDPOINT_TYPE_BULK,
+  WBVAL(USB_FS_BULK_SIZE),
+  0x00,
+  0x00,
+  0x00,
+
+  // Emb OUT Jack 0x12  ----+
+  //                        +----- bulk IN endpoint
+  // Emb OUT Jack 0x14  ----+
+  /** Bulk IN - class-specific endpoint descriptor */
+  5,
+  USB_CS_ENDPOINT_DESC_TYPE,
+  USB_MIDI_EP_GENERAL_SUBTYPE,
+  0x01,
+  0x12,
+
+  /* Terminator */
+  0
+};
+
+char checker(int);
+//char checkSizeOfInt[sizeof(USB_MIDI_HSConfigDescriptor)]={checker(&checkSizeOfInt)};
 
 // clang format off
 /* USB String Descriptor (optional) */

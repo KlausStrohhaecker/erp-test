@@ -16,4 +16,4 @@ uint16_t MIDI_encodeSysex(uint8_t const* src, uint32_t len, uint8_t* const dest)
 uint16_t MIDI_decodeRawSysex(uint8_t const* const src, uint32_t const len, uint8_t* dest);
 //
 // return number of bytes of raw encoding
-uint16_t MIDI_encodeRawSysex(uint8_t const* src, uint32_t len, uint8_t* const dest);
+uint16_t MIDI_encodeRawSysex(uint8_t const* src, uint32_t len, uint8_t* const dest, uint8_t const cableNr);
