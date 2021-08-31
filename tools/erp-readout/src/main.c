@@ -407,9 +407,11 @@ static inline BOOL examineContent(void const *const data, unsigned const len)
   }
   time = now;
 
-  if (len != (128) * 4)
+#define CHECK_SIZE (35 * 4)
+
+  if (len != CHECK_SIZE)
   {
-    error("receive: payload has wrong length %d, expected %d", len, (128) * 4);
+    error("receive: payload has wrong length %d, expected %d", len, CHECK_SIZE);
     return FALSE;
   }
 
