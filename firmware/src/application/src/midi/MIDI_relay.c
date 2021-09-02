@@ -216,11 +216,11 @@ static inline void onReceive(OP, uint8_t *buff, uint32_t len)
   if ((t->state == IDLE) || (t->pData[1] == 0))
   {
     // setup packet transfer data ...
-	unsigned idx  = (t->pData[1] != 0);
+    unsigned idx  = (t->pData[1] != 0);
     t->pData[idx] = buff;
     t->len[idx]   = len;
     if (idx == 0)
-      t->state    = RECEIVED;
+      t->state = RECEIVED;
     // ... and block receiver until transmit finished/failed
     USB_MIDI_SuspendReceive(t->portNo, 1);
     return;
@@ -295,7 +295,7 @@ void SendERP(void *buff, uint32_t len, void *sysexBuff)
     t->pData[idx] = sysexBuff;
     t->len[idx]   = size;
     if (idx == 0)
-      t->state      = RECEIVED;
+      t->state = RECEIVED;
     __enable_irq();
     return;
   }
